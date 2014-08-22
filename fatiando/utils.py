@@ -64,16 +64,13 @@ import scipy.sparse
 import scipy.sparse.linalg
 import scipy.misc
 import PIL.Image
+import obspy
+from obspy.segy.core import readSEGY
 
 from . import constants, gridder
 
-import obspy
 
-# to be able to use other features from Obspy like read
-try:
-    from obspy import *
-except:
-    pass
+
 
 def fromimage(fname, ranges=None, shape=None):
     """
@@ -996,6 +993,3 @@ def stream2matrix(stream):
         stats = stream.stats
     
     return traces, stats
-
-def Read():
-    obspy.read()
