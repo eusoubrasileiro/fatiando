@@ -374,10 +374,21 @@ def _step_scalar(
 @cython.wraparound(False)
 def _nonreflexive_acoustic3_boundary_conditions(
     double[:,:,::1] u not None,
+    double[:,:,::1] u_tp1 not None,
+    double[:,:,::1] u_t not None,
+    double dx, double dy, double dz,
+    double[:,:,::1] c not None,
     unsigned int nx, unsigned int ny, unsigned int nz):
     """
-    Apply the boundary conditions: free-surface at top, fixed on the others. 3D
-    4th order Staggered (+3-3) indexes, x (north), y (east), z (down)
+    Apply the boundary conditions: free-surface at top, transparent in the borders
+    4th order (+3-3) indexes
+
+    Threat the field as it was just scalar and uses Reynolds ABS conditions.
+    Reynolds, A. C. - Boundary conditions for numerical solution of wave propagation problems
+    Geophysics p 1099-1110 - 1978
+    The finite difference approximation used by Reynolds for the transparent boundary condition is of first
+    order, though the scalar schema of propagation is of fourth order.
+
     """
     cdef unsigned int i, j, k
     # Top
@@ -421,7 +432,7 @@ def _step_acoustic3_esg(
     double[:,:,::1] kmod not None):
     """
     Perform a single time step in Equivalent Staggered FD 3D solution for
-    scalar waves 4th order in space
+    acoustic waves 4th order in space
     """
 
     cdef:
