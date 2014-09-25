@@ -154,9 +154,9 @@ except:
     _nonreflexive_sh_boundary_conditions = not_implemented
     _nonreflexive_psv_boundary_conditions = not_implemented
     _step_scalar = not_implemented
-    _step_scalar3_esg = not_implemented
-    _reflexive_scalar_boundary_conditions = not_implemented
-    _reflexive_scalar3_boundary_conditions = not_implemented
+    _step_acoustic3_esg = not_implemented
+    _nonreflexive_scalar_boundary_conditions = not_implemented
+    _nonreflexive_acoustic3_boundary_conditions = not_implemented
 
 # Finite differences wave equation support geometric classes ICoord3 and ICoord2
 
@@ -580,11 +580,16 @@ def _add_pad(array, pad, shape):
 
 
 def scalar(vel, area, dt, iterations, sources, stations=None,
-           snapshot=None, padding=50, taper=0.005):
+    snapshot=None, padding=50, taper=0.006):
     """
 
     Simulate scalar waves using an explicit finite differences scheme 4th order
     space. Space increment must be equal in x and z.
+
+    The top implements a free-surface boundary condition.
+    For the left, right and lower uses boundaries uses Transparent condition of Reynolds, A. C.
+    (Boundary conditions for numerical solution of wave propagation problems Geophysics p 1099-1110 - 1978)
+    and also absorbing boundary conditions (Gaussian taper)
 
     Parameters:
 
@@ -612,7 +617,7 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
         Number of grid nodes to use for the absorbing boundary region
     * taper : float
         The intensity of the Gaussian taper function used for the absorbing
-        boundary conditions
+        boundary conditions. Adjust it for better absorption.
 
     Yields:
 
@@ -623,27 +628,27 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
 
     """
 
-    nz, nx = numpy.shape(vel)  # get simulation dimensions
+    nz, nx = numpy.shape(vel) # get simulation dimensions
     x1, x2, z1, z2 = area
-    dz, dx = (z2 - z1) / (nz - 1), (x2 - x1) / (nx - 1)
+    dz, dx = (z2 - z1)/(nz - 1), (x2 - x1)/(nx - 1)
 
     if dz != dx:
         raise ValueError('Space increment must be equal in x and z')
 
-    ds = dz  # dz or dx doesn't matter
+    ds = dz # dz or dx doesn't matter
 
     # Get the index of the closest point to the stations and start the
     # seismograms
     if stations is not None:
-        stations = [[int(round((z - z1) / ds)), int(round((x - x1) / ds))]
+        stations = [[int(round((z - z1)/ds)), int(round((x - x1)/ds))]
                     for x, z in stations]
         seismograms = [numpy.zeros(iterations) for i in xrange(len(stations))]
     else:
         stations, seismograms = [], []
-        # Add some padding to x and z. The padding region is where the wave is
+    # Add some padding to x and z. The padding region is where the wave is
     # absorbed
     pad = int(padding)
-    nx += 2 * pad
+    nx += 2*pad
     nz += pad
     # Pad the velocity as well
     vel_pad = _add_pad(vel, pad, (nz, nx))
@@ -655,15 +660,16 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
     # Compute and yield the initial solutions
     for src in sources:
         i, j = src.indexes()
-        u[1, i, j + pad] += -((vel[i, j] * dt) ** 2) * src(0)
-        # Update seismograms
+        u[1, i, j + pad] += -((vel[i,j]*dt)**2)*src(0)
+    # Update seismograms
     for station, seismogram in zip(stations, seismograms):
         i, j = station
         seismogram[0] = u[1, i, j + pad]
     if snapshot is not None:
         yield 0, u[1, :-pad, pad:-pad], seismograms
+
     for iteration in xrange(1, iterations):
-        t, tm1 = iteration % 2, (iteration + 1) % 2
+        t, tm1 = iteration%2, (iteration + 1)%2
         tp1 = tm1
         _step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
                      dt, ds, vel_pad)
@@ -671,22 +677,22 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
         # Damp the regions in the padding to make waves go to infinity
         _apply_damping(u[t], nx, nz, pad, taper)
         # not PML yet or anything similar
-        _reflexive_scalar_boundary_conditions(u[tp1], nx, nz)
+        _nonreflexive_scalar_boundary_conditions(u[tp1], u[t], u[tm1], vel_pad, dt, ds, nx, nz)
         # Damp the regions in the padding to make waves go to infinity
         _apply_damping(u[tp1], nx, nz, pad, taper)
         for src in sources:
             i, j = src.indexes()
-            u[tp1, i, j + pad] += -((vel[i, j] * dt) ** 2) * src(iteration * dt)
-            # Update seismograms
+            u[tp1, i, j + pad] += -((vel[i,j]*dt)**2)*src(iteration*dt)
+        # Update seismograms
         for station, seismogram in zip(stations, seismograms):
             i, j = station
             seismogram[iteration] = u[tp1, i, j + pad]
-        if snapshot is not None and iteration % snapshot == 0:
+        if snapshot is not None and iteration%snapshot == 0:
             yield iteration, u[tp1, :-pad, pad:-pad], seismograms
     yield iteration, u[tp1, :-pad, pad:-pad], seismograms
 
 
-def scalar3_esg(c, density, area, dt, iterations, sources, stations=None,
+def acoustic3_esg(c, density, area, dt, iterations, sources, stations=None,
                 snapshot=None, padding=20, taper=0.005):
     """
     Simulate 3D acoustic waves using the Equivalent Staggered Grid (ESG) finite
@@ -786,11 +792,11 @@ def scalar3_esg(c, density, area, dt, iterations, sources, stations=None,
     for iteration in xrange(1, iterations):
         t, tm1 = iteration % 2, (iteration + 1) % 2
         tp1 = tm1
-        _step_scalar3_esg(u[tp1], u[t], u[tm1], 3, nx - 3, 3, ny - 3,
+        _step_acoustic3_esg(u[tp1], u[t], u[tm1], 3, nx - 3, 3, ny - 3,
                           3, nz - 3, dt, dx, dy, dz, b_pad, kmod_pad)
         _apply_damping3(u[t], nx, ny, nz, pad, taper)
         # not PML yet or anything similar
-        _reflexive_scalar3_boundary_conditions(u[tp1], nx, ny, nz)
+        _nonreflexive_acoustic3_boundary_conditions(u[tp1], nx, ny, nz)
         _apply_damping3(u[tp1], nx, ny, nz, pad, taper)
         for src in sources:
             k, j, i = src.indexes()

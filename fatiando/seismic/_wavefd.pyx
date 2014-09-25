@@ -20,10 +20,10 @@ __all__ = [
     '_xz2ps',
     '_nonreflexive_sh_boundary_conditions',
     '_nonreflexive_psv_boundary_conditions',
-    '_reflexive_scalar_boundary_conditions',
-    '_reflexive_scalar3_boundary_conditions',
+    '_nonreflexive_scalar_boundary_conditions',
+    '_nonreflexive_acoustic3_boundary_conditions',
     '_step_scalar',
-    '_step_scalar3_esg']
+    '_step_acoustic3_esg']
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -304,26 +304,48 @@ def _step_elastic_psv(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _reflexive_scalar_boundary_conditions(
-    double[:,::1] u not None,
+def _nonreflexive_scalar_boundary_conditions(
+    double[:,::1] u_tp1 not None,
+    double[:,::1] u_t not None,
+    double[:,::1] u_tm1 not None,
+    double[:,::1] vel not None,
+    double dt, double ds,
     unsigned int nx, unsigned int nz):
     """
-    Apply the boundary conditions: free-surface at top, fixed on the others.
+    Apply the boundary conditions: free-surface at top, transparent in the borders
     4th order (+2-2) indexes
+
+    Uses Reynolds, A. C. - Boundary conditions for numerical solution of wave propagation problems
+    Geophysics p 1099-1110 - 1978
+    The finite difference approximation used by Reynolds for the transparent boundary condition is of first
+    order, though the scalar schema of propagation is of fourth order.
+
     """
     cdef unsigned int i
-    # Top
+    # Top free surface
     for i in xrange(nx):
-        u[1, i] = u[2, i] #up
-        u[0, i] = u[1, i]
-        u[nz - 1, i] *= 0 #down
-        u[nz - 2, i] *= 0
+        u_tp1[0, i] = 0.0 #up
+        u_tp1[1, i] = 0.0
+    # Transparent boundary condition applied exactly at
+    # The edge of the fourth order calculation
     # Sides
     for i in xrange(nz):
-        u[i, 0] *= 0 #left
-        u[i, 1] *= 0
-        u[i, nx - 1] *= 0 #right
-        u[i, nx - 2] *= 0
+        # left
+        u_tp1[i, 0] = 0.
+        u_tp1[i, 1] = ( u_t[i, 1] + u_t[i, 2] - u_tm1[i, 2] +
+            (vel[i, 1]*dt/ds)*(u_t[i, 2] - u_t[i, 1] - u_tm1[i, 3] + u_tm1[i, 2])
+            )
+        #right
+        u_tp1[i, nx-1] = 0.
+        u_tp1[i, nx-2] = ( u_t[i, nx-2] + u_t[i, nx-3] - u_tm1[i, nx-3] -
+            (vel[i, nx-2]*dt/ds)*(u_t[i, nx-2] - u_t[i, nx-3] - u_tm1[i, nx-3] + u_tm1[i, nx-4])
+            )
+    # Down
+    for i in xrange(nx):
+        u_tp1[nz - 1, i] = 0.
+        u_tp1[nz - 2, i] = ( u_t[nz-2, i] + u_t[nz-3, i] - u_tm1[nz-3, i] -
+            (vel[nz-2, i]*dt/ds)*(u_t[nz-2, i] - u_t[nz-3, i] - u_tm1[nz-3, i] + u_tm1[nz-4, i])
+            )
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -350,7 +372,7 @@ def _step_scalar(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _reflexive_scalar3_boundary_conditions(
+def _nonreflexive_acoustic3_boundary_conditions(
     double[:,:,::1] u not None,
     unsigned int nx, unsigned int ny, unsigned int nz):
     """
@@ -387,7 +409,7 @@ def _reflexive_scalar3_boundary_conditions(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _step_scalar3_esg(
+def _step_acoustic3_esg(
     double[:,:,::1] p_tp1 not None,
     double[:,:,::1] p_t not None,
     double[:,:,::1] p_tm1 not None,
