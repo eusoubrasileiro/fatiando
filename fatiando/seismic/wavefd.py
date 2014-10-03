@@ -750,7 +750,7 @@ def acoustic3_esg(c, density, area, dt, iterations, sources, stations=None,
 
     b = 1./density  # turn density in buoyancy its inverse
     kmod = density*c**2  # get kappa compression modulus
-    del density, c  # must be done in huge grid cases
+    del density  # must be done in huge grid cases
     x1, x2, y1, y2, z1, z2 = area
     nz, ny, nx = b.shape
     dz, dy, dx = (z2 - z1) / (nz - 1), (y2 - y1) / (ny - 1), (x2 - x1) / (nx - 1)
@@ -796,7 +796,7 @@ def acoustic3_esg(c, density, area, dt, iterations, sources, stations=None,
                           3, nz - 3, dt, dx, dy, dz, b_pad, kmod_pad)
         _apply_damping3(u[t], nx, ny, nz, pad, taper)
         # not PML yet or anything similar
-        _nonreflexive_acoustic3_boundary_conditions(u[tp1], nx, ny, nz)
+        _nonreflexive_acoustic3_boundary_conditions(u[tm1], u[t], u[tp1], dx, dy, dz, c, nx, ny, nz)
         _apply_damping3(u[tp1], nx, ny, nz, pad, taper)
         for src in sources:
             k, j, i = src.indexes()

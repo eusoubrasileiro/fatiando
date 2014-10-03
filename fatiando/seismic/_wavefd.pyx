@@ -373,9 +373,9 @@ def _step_scalar(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def _nonreflexive_acoustic3_boundary_conditions(
-    double[:,:,::1] u not None,
-    double[:,:,::1] u_tp1 not None,
+    double[:,:,::1] u_tm1 not None,
     double[:,:,::1] u_t not None,
+    double[:,:,::1] u_tp1 not None,
     double dx, double dy, double dz,
     double[:,:,::1] c not None,
     unsigned int nx, unsigned int ny, unsigned int nz):
@@ -391,6 +391,7 @@ def _nonreflexive_acoustic3_boundary_conditions(
 
     """
     cdef unsigned int i, j, k
+    u = u_t
     # Top
     for j in range(ny):
         for i in range(nx):
