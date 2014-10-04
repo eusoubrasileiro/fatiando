@@ -71,12 +71,12 @@ def anim():
         #svolume._volume_property.set_color(ctf)
         #svolume._ctf = ctf
         #svolume.update_ctf = True
-        otf = PiecewiseFunction()
-        otf.add_point(minu, 0.4)
-        otf.add_point(0., 0.0)
-        otf.add_point(maxu, 0.4)
-        svolume._otf = otf
-        svolume._volume_property.set_scalar_opacity(otf)
+        #otf = PiecewiseFunction()
+        #otf.add_point(minu, 0.4)
+        #otf.add_point(0., 0.0)
+        #otf.add_point(maxu, 0.4)
+        #svolume._otf = otf
+        #svolume._volume_property.set_scalar_opacity(otf)
         u = u.transpose()[::-1]  # solving z up
         svolume.mlab_source.scalars = u
         sys.stdout.write("\rprogressing .. %.1f%% time %.3f"%(100.0*float(t)/maxit, (dt*t)))

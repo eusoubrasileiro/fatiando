@@ -331,18 +331,15 @@ def _nonreflexive_scalar_boundary_conditions(
     # Sides
     for i in xrange(nz):
         # left
-        u_tp1[i, 0] = 0.
         u_tp1[i, 1] = ( u_t[i, 1] + u_t[i, 2] - u_tm1[i, 2] +
             (vel[i, 1]*dt/ds)*(u_t[i, 2] - u_t[i, 1] - u_tm1[i, 3] + u_tm1[i, 2])
             )
         #right
-        u_tp1[i, nx-1] = 0.
         u_tp1[i, nx-2] = ( u_t[i, nx-2] + u_t[i, nx-3] - u_tm1[i, nx-3] -
             (vel[i, nx-2]*dt/ds)*(u_t[i, nx-2] - u_t[i, nx-3] - u_tm1[i, nx-3] + u_tm1[i, nx-4])
             )
     # Down
     for i in xrange(nx):
-        u_tp1[nz - 1, i] = 0.
         u_tp1[nz - 2, i] = ( u_t[nz-2, i] + u_t[nz-3, i] - u_tm1[nz-3, i] -
             (vel[nz-2, i]*dt/ds)*(u_t[nz-2, i] - u_t[nz-3, i] - u_tm1[nz-3, i] + u_tm1[nz-4, i])
             )
