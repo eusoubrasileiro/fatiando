@@ -143,59 +143,97 @@ except:
     _nonreflexive_sh_boundary_conditions = not_implemented
     _nonreflexive_psv_boundary_conditions = not_implemented
     _step_scalar = not_implemented
-    _reflexive_scalar_boundary_conditions = not_implemented
+    _nonreflexive_scalar_boundary_conditions = not_implemented
 
 
-class MexHatSource(object):
+# Finite differences wave equation support geometric classes ICoord3 and ICoord2
 
-    r"""
-    A wave source that vibrates as a Mexican hat (Ricker) wavelet.
-
-    .. math::
-
-        \psi(t) = A(1 - 2 \pi^2 f^2 t^2)exp(-\pi^2 f^2 t^2)
+class ICoord3(object):
+    """
+    Base class for objects having index and coordinate support in 3D regular grids.
 
     Parameters:
 
-    * x, z : float
-        The x, z coordinates of the source
-    * area : [xmin, xmax, zmin, zmax]
-        The area bounding the finite difference simulation
-    * shape : (nz, nx)
-        The number of nodes in the finite difference grid
-    * amp : float
-        The amplitude of the source (:math:`A`)
-    * frequency : float
-        The peak frequency of the wavelet
-    * delay : float
-        The delay before the source starts
+    * coords : (x, y, z)
+        The x, y, z coordinate
+    * area : [xmin, xmax, ymin, ymax, zmin, zmax]
+        The extends of the 3D regular grid
+    * shape : (nz, ny, nx)
+        The number of nodes in the 3D regular grid
 
-        .. note:: If you want the source to start with amplitude close to 0,
-            use ``delay = 3.5/frequency``.
+    Being *grid3* a 3D regular grid  you can set a value as
+
+    obj = _ICoord3(5, 5, 5, area=(100, 100, 100), shape(10,10,10))
+    grid3[obj.indexes] = value
 
     """
 
-    def __init__(self, x, z, area, shape, amp, frequency, delay=0):
-        nz, nx = shape
-        dz, dx = sum(area[2:]) / (nz - 1), sum(area[:2]) / (nx - 1)
-        self.i = int(round((z - area[2]) / dz))
-        self.j = int(round((x - area[0]) / dx))
-        self.x, self.z = x, z
-        self.amp = amp
-        self.frequency = frequency
-        self.f2 = frequency ** 2
-        self.delay = delay
-
-    def __call__(self, time):
-        t2 = (time - self.delay) ** 2
-        pi2 = numpy.pi ** 2
-        psi = self.amp * (1 - 2 * pi2 * self.f2 * t2) * \
-            numpy.exp(-pi2 * self.f2 * t2)
-        return psi
+    def __init__(self, x, y, z, area, shape):
+        nz, ny, nx = shape
+        x1, x2, y1, y2, z1, z2 = area
+        dz, dy, dx = (z2 - z1) / (nz - 1), (y2 - y1) / (ny - 1), (x2 - x1) / (nx - 1)
+        self.k = int(round((z - area[4]) / dz))
+        self.j = int(round((y - area[2]) / dx))
+        self.i = int(round((x - area[0]) / dx))
+        self.x, self.y, self.z = x, y, z
 
     def coords(self):
         """
-        Get the x, z coordinates of the source.
+        The real world x, y, z coordinates.
+
+        Returns:
+
+        * (x, y, z) : tuple
+            The x, y, z coordinates
+
+        """
+        return (self.x, self.y, self.z)
+
+    def indexes(self):
+        """
+        The indexes coordinates in the regular grid.
+        It's the inverted canonical form (k, j, i)
+
+        Returns:
+
+        * (k,j,i) : tuple
+            The k,j,i grid coordinates
+
+        """
+        return (self.k, self.j, self.i)
+
+
+class ICoord2(object):
+    """
+    Base class for objects having index and coordinate support in 2D regular grids.
+
+    Parameters:
+
+    * coords : (x, z)
+        The x, z coordinate
+    * area : [xmin, xmax, zmin, zmax]
+        The extends of the 2D regular grid
+    * shape : (nz, nx)
+        The number of nodes in the 2D regular grid
+
+    Being *grid2* a 2D regular grid  you can set a value as
+
+    obj = _ICoord2(5, 5, area=(100, 100), shape(10,10))
+    grid2[obj.indexes] = value
+
+    """
+
+    def __init__(self, x, z, area, shape):
+        nz, nx = shape
+        x1, x2, z1, z2 = area
+        dz, dx = (z2 - z1) / (nz - 1), (x2 - x1) / (nx - 1)
+        self.k = int(round((z - area[2]) / dz))
+        self.i = int(round((x - area[0]) / dx))
+        self.x, self.z = x, z
+
+    def coords(self):
+        """
+        The real world x, z coordinates.
 
         Returns:
 
@@ -207,19 +245,96 @@ class MexHatSource(object):
 
     def indexes(self):
         """
-        Get the i,j coordinates of the source in the finite difference grid.
+        The indexes coordinates in the regular grid.
+        It's the inverted canonical form (k, i)
 
         Returns:
 
-        * (i,j) : tuple
-            The i,j coordinates
+        * (k, i) : tuple
+            The k, i grid coordinates
 
         """
-        return (self.i, self.j)
+        return (self.k, self.i)
+
+
+class MexHatSource(object):
+    r"""
+    A wave source that vibrates as a Mexican hat (Ricker) wavelet.
+    Supports 3D or 2D regular grids.
+
+    .. math::
+
+        \psi(t) = A(1 - 2 \pi^2 f^2 t^2)exp(-\pi^2 f^2 t^2)
+
+    Parameters:
+
+    * coords: (x, z) or (x, y, z)
+        The x, z or (x, y, z) coordinates of the source
+    * area : [xmin, xmax, zmin, zmax] or [xmin, xmax, ymin, ymax, zmin, zmax]
+        The area bounding the finite difference simulation
+    * shape : (nz, nx) or (nz, ny, nx)
+        The number of nodes in the finite difference grid
+    * amp : float
+        The amplitude of the source (:math:`A`)
+    * frequency : float
+        The peak frequency of the wavelet
+    * delay : float
+        The delay before the source start default = 3.5/frequency
+        to start with amplitude close to 0
+
+    """
+
+    def __init__(self, coords, area, shape, amp, frequency, delay=None):
+        if coords is None:
+            self.indexes = None
+            self.coordinates = None
+            self.indexes = None
+        elif len(coords) == 3:
+            self.coordinates = ICoord3(coords[0], coords[1], coords[2], area, shape)
+            self.indexes = self.coordinates.indexes
+            self.coords = self.coordinates.coords
+        else:
+            self.coordinates = ICoord2(coords[0], coords[1], area, shape)
+            self.indexes = self.coordinates.indexes
+            self.coords = self.coordinates.coords
+        self.amp = amp
+        self.frequency = frequency
+        self.f2 = frequency ** 2
+        if delay is None:  # default behavior
+            delay = 3.5/frequency
+        self.delay = delay
+
+    def __call__(self, time):
+        t2 = (time - self.delay) ** 2
+        pi2 = numpy.pi ** 2
+        psi = self.amp * ((1 - 2 * pi2 * self.f2 * t2) *
+                          numpy.exp(-pi2 * self.f2 * t2))
+        return psi
+
+    @classmethod
+    def simple(cls, amp, frequency, delay=None):
+        """
+        Creates a Simple Source class without grid information
+
+        Parameters:
+
+        * amp : float
+        The amplitude of the source (:math:`A`)
+        * frequency : float
+        The peak frequency of the wavelet
+        * delay : float
+        The delay before the source start.
+        Default start with amplitude close to 0
+
+        Usage:
+
+        MexHatSource.simple(1, 20.2)
+
+        """
+        return cls(None, None, None, amp, frequency, delay)
 
 
 class SinSqrSource(MexHatSource):
-
     r"""
     A wave source that vibrates as a sine squared function.
 
@@ -242,15 +357,13 @@ class SinSqrSource(MexHatSource):
     * frequency : float
         The frequency of the source
     * delay : float
-        The delay before the source starts
-
-        .. note:: If you want the source to start with amplitude close to 0,
-            use ``delay = 3.5/frequency``.
+        The delay before the source start default = 3.5/frequency
+        to start with amplitude close to 0
 
     """
 
-    def __init__(self, x, z, area, shape, amp, frequency, delay=0):
-        super(SinSqrSource, self).__init__(x, z, area, shape, amp,
+    def __init__(self, x, z, area, shape, amp, frequency, delay=None):
+        super(SinSqrSource, self).__init__((x, z), area, shape, amp,
                                            frequency, delay)
         self.wlength = 1. / frequency
 
@@ -258,12 +371,11 @@ class SinSqrSource(MexHatSource):
         t = time - self.delay
         if t + self.delay > self.wlength:
             return 0
-        psi = self.amp * \
-            numpy.sin(2. * numpy.pi * t / float(self.wlength)) ** 2
+        psi = self.amp * numpy.sin(2. * numpy.pi * t / float(self.wlength)) ** 2
         return psi
 
 
-def blast_source(x, z, area, shape, amp, frequency, delay=0,
+def blast_source(x, z, area, shape, amp, frequency, delay=None,
                  sourcetype=MexHatSource):
     """
     Uses several MexHatSources to create a blast source that pushes in all
@@ -295,23 +407,18 @@ def blast_source(x, z, area, shape, amp, frequency, delay=0,
     """
     nz, nx = shape
     xsources, zsources = [], []
-    center = sourcetype(x, z, area, shape, amp, frequency, delay)
+    center = sourcetype((x, z), area, shape, amp, frequency, delay)
     i, j = center.indexes()
     tmp = numpy.sqrt(2)
-    locations = [[i - 1, j - 1, -amp, -amp],
-                 [i - 1, j, 0, -tmp * amp],
-                 [i - 1, j + 1, amp, -amp],
-                 [i, j - 1, -tmp * amp, 0],
-                 [i, j + 1, tmp * amp, 0],
-                 [i + 1, j - 1, -amp, amp],
-                 [i + 1, j, 0, tmp * amp],
-                 [i + 1, j + 1, amp, amp]]
+    locations = [[i - 1, j - 1, -amp, -amp], [i - 1, j, 0, -tmp * amp], [i - 1, j + 1, amp, -amp],
+                 [i, j - 1, -tmp * amp, 0], [i, j + 1, tmp * amp, 0],
+                 [i + 1, j - 1, -amp, amp], [i + 1, j, 0, tmp * amp], [i + 1, j + 1, amp, amp]]
     locations = [[i, j, xamp, zamp] for i, j, xamp, zamp in locations
                  if i >= 0 and i < nz and j >= 0 and j < nx]
     for i, j, xamp, zamp in locations:
-        xsrc = sourcetype(x, z, area, shape, xamp, frequency, delay)
+        xsrc = sourcetype((x, z), area, shape, xamp, frequency, delay)
         xsrc.i, xsrc.j = i, j
-        zsrc = sourcetype(x, z, area, shape, zamp, frequency, delay)
+        zsrc = sourcetype((x, z), area, shape, zamp, frequency, delay)
         zsrc.i, zsrc.j = i, j
         xsources.append(xsrc)
         zsources.append(zsrc)
@@ -319,44 +426,41 @@ def blast_source(x, z, area, shape, amp, frequency, delay=0,
 
 
 class GaussSource(MexHatSource):
-
     r"""
     A wave source that vibrates as a Gaussian derivative wavelet.
+    Supports 3D or 2D regular grids.
 
     .. math::
 
         \psi(t) = A 2 \sqrt{e}\ f\ t\ e^\left(-2t^2f^2\right)
 
-    Parameters:
-
-    * x, z : float
-        The x, z coordinates of the source
-    * area : [xmin, xmax, zmin, zmax]
+    * coords: (x, z) or (x, y, z)
+        The x, z or (x, y, z) coordinates of the source
+    * area : [xmin, xmax, zmin, zmax] or [xmin, xmax, ymin, ymax, zmin, zmax]
         The area bounding the finite difference simulation
-    * shape : (nz, nx)
+    * shape : (nz, nx) or (nz, ny, nx)
         The number of nodes in the finite difference grid
     * amp : float
         The amplitude of the source (:math:`A`)
     * frequency : float
-        The approximate frequency of the source
+        The peak frequency of the wavelet
     * delay : float
-        The delay before the source starts
+        The delay before the source start default = 3.0/frequency
+        to start with amplitude close to 0
 
-    .. note:: If you want the source to start with amplitude close to 0,
-        use ``delay = 3.0/frequency``.
     """
 
-    def __init__(self, x, z, area, shape, amp, frequency, delay=None):
-        super(GaussSource, self).__init__(x, z, area, shape, amp,
-                                          frequency, delay)
+    def __init__(self, coords, area, shape, amp, frequency, delay=None):
         if delay is None:
-            self.delay = 3.0 / frequency
+            delay = 3.0/frequency
+        super(GaussSource, self).__init__(coords, area, shape, amp,
+                                          frequency, delay)
 
     def __call__(self, time):
         t = time - self.delay
         psi = self.amp * ((2 * numpy.sqrt(numpy.e) * self.frequency)
                           * t * numpy.exp(-2 * (t ** 2) * self.f2)
-                          )
+        )
         return psi
 
 
@@ -437,24 +541,43 @@ def lame_mu(svel, dens):
 
 def _add_pad(array, pad, shape):
     """
-    Pad the array with the values of the borders
+    Pad the 2d/3d array with the values of the borders
     """
-    array_pad = numpy.zeros(shape, dtype=numpy.float)
-    array_pad[:-pad, pad:-pad] = array
-    for k in xrange(pad):
-        array_pad[:-pad, k] = array[:, 0]
-        array_pad[:-pad, -(k + 1)] = array[:, -1]
-    for k in xrange(pad):
-        array_pad[-(pad - k), :] = array_pad[-(pad + 1), :]
-    return array_pad
+    if len(shape) == 2:
+        array_pad = numpy.zeros(shape, dtype=numpy.float)
+        array_pad[:-pad, pad:-pad] = array  # copy stuffing
+        for i in xrange(pad):  # x direction laterals
+            array_pad[:-pad, i] = array[:, 0]  # x=0 replicated left
+            array_pad[:-pad, -(i + 1)] = array[:, -1]  # x=-1 replicated right
+        for k in xrange(pad):  # z depth, last z copied down
+            array_pad[-(pad - k), :] = array_pad[-(pad + 1), :]
+        return array_pad
+    else:  # 3D regular cube i (north), j(east), k (down)
+        array_pad = numpy.zeros(shape, dtype=numpy.float)
+        array_pad[:-pad, pad:-pad, pad:-pad] = array  # copy stuffing
+        # copy every (y,z) plane's
+        for i in xrange(pad):  # x direction laterals
+            array_pad[:-pad, pad:-pad, i] = array[:, :, 0]  # south
+            array_pad[:-pad, pad:-pad, -(i + 1)] = array[:, :, -1]  # north
+        for k in xrange(pad):  # x, y planes copied copied down to z
+            array_pad[-(pad - k), pad:-pad, :] = array_pad[-(pad + 1), pad:-pad, :]
+        for j in xrange(pad):  # replicate to y padding regions
+            array_pad[:, -(j + 1), :] = array_pad[:, -(pad + 1), :]  # east
+            array_pad[:, j, :] = array_pad[:, pad, :]  # west
+        return array_pad
 
 
 def scalar(vel, area, dt, iterations, sources, stations=None,
-           snapshot=None, padding=50, taper=0.005):
+    snapshot=None, padding=-1, taper=0.006):
     """
 
     Simulate scalar waves using an explicit finite differences scheme 4th order
     space. Space increment must be equal in x and z.
+
+    The top implements a free-surface boundary condition.
+    For the left, right and lower uses boundaries uses Transparent condition of Reynolds, A. C.
+    (Boundary conditions for numerical solution of wave propagation problems Geophysics p 1099-1110 - 1978)
+    and also absorbing boundary conditions (Gaussian taper)
 
     Parameters:
 
@@ -480,9 +603,10 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
         *snapshot* iterations.
     * padding : int
         Number of grid nodes to use for the absorbing boundary region
+        default 5 percent nz
     * taper : float
         The intensity of the Gaussian taper function used for the absorbing
-        boundary conditions
+        boundary conditions. Adjust it for better absorption.
 
     Yields:
 
@@ -493,19 +617,19 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
 
     """
 
-    nz, nx = numpy.shape(vel)  # get simulation dimensions
+    nz, nx = numpy.shape(vel) # get simulation dimensions
     x1, x2, z1, z2 = area
-    dz, dx = (z2 - z1) / (nz - 1), (x2 - x1) / (nx - 1)
+    dz, dx = (z2 - z1)/(nz - 1), (x2 - x1)/(nx - 1)
 
     if dz != dx:
         raise ValueError('Space increment must be equal in x and z')
 
-    ds = dz  # dz or dx doesn't matter
+    ds = dz # dz or dx doesn't matter
 
     # Get the index of the closest point to the stations and start the
     # seismograms
     if stations is not None:
-        stations = [[int(round((z - z1) / ds)), int(round((x - x1) / ds))]
+        stations = [[int(round((z - z1)/ds)), int(round((x - x1)/ds))]
                     for x, z in stations]
         seismograms = [numpy.zeros(iterations) for i in xrange(len(stations))]
     else:
@@ -513,7 +637,9 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
     # Add some padding to x and z. The padding region is where the wave is
     # absorbed
     pad = int(padding)
-    nx += 2 * pad
+    if pad == -1:   # default 5% percent nz
+        pad = int(0.05*nz) + 2
+    nx += 2*pad
     nz += pad
     # Pad the velocity as well
     vel_pad = _add_pad(vel, pad, (nz, nx))
@@ -525,7 +651,7 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
     # Compute and yield the initial solutions
     for src in sources:
         i, j = src.indexes()
-        u[1, i, j + pad] += -((vel[i, j] * dt) ** 2) * src(0)
+        u[1, i, j + pad] += -((vel[i,j]*dt)**2)*src(0)
     # Update seismograms
     for station, seismogram in zip(stations, seismograms):
         i, j = station
@@ -534,28 +660,134 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
         yield 0, u[1, :-pad, pad:-pad], seismograms
 
     for iteration in xrange(1, iterations):
-        t, tm1 = iteration % 2, (iteration + 1) % 2
+        t, tm1 = iteration%2, (iteration + 1)%2
         tp1 = tm1
         _step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
                      dt, ds, vel_pad)
         # forth order +2-2 indexes needed
         # Damp the regions in the padding to make waves go to infinity
-        _apply_damping(u[t], nx, nz, pad, taper)
+        #_apply_damping(u[t], nx, nz, pad, taper)
         # not PML yet or anything similar
-        _reflexive_scalar_boundary_conditions(u[tp1], nx, nz)
+        _nonreflexive_scalar_boundary_conditions(u[tp1], u[t], u[tm1], vel_pad, dt, ds, nx, nz)
         # Damp the regions in the padding to make waves go to infinity
-        _apply_damping(u[tp1], nx, nz, pad, taper)
+        #_apply_damping(u[tp1], nx, nz, pad, taper)
         for src in sources:
             i, j = src.indexes()
-            u[tp1, i, j + pad] += - \
-                ((vel[i, j] * dt) ** 2) * src(iteration * dt)
+            u[tp1, i, j + pad] += -((vel[i,j]*dt)**2)*src(iteration*dt)
         # Update seismograms
         for station, seismogram in zip(stations, seismograms):
             i, j = station
             seismogram[iteration] = u[tp1, i, j + pad]
-        if snapshot is not None and iteration % snapshot == 0:
+        if snapshot is not None and iteration%snapshot == 0:
             yield iteration, u[tp1, :-pad, pad:-pad], seismograms
     yield iteration, u[tp1, :-pad, pad:-pad], seismograms
+
+
+def scalar3(c, area, dt, iterations, sources, stations=None,
+                snapshot=None, padding=15, taper=0.006):
+    """
+    Simulate 3D scalar waves
+
+    This is an iterator. It yields a panel of $u$ pressure and a list
+    of arrays with recorded pressure perturbations in a time series.
+    Parameter *snapshot* controls how often the iterator yields. The default
+    is only at the end, so only the final panel and full time series are
+    yielded.
+
+    Uses absorbing boundary conditions Reynolds and Gaussian taper in the lower, left and
+    right boundaries. The top implements a free-surface boundary condition.
+
+    Parameters:
+
+    * c : 3D-array
+        The velocity
+    * area : [xmin, xmax, ymin, ymax, zmin, zmax]
+        The x, y, z limits of the simulation area, e.g., the shallowest point is
+        at zmin, the deepest at zmax. While x and y are surface coordinates.
+    * dt : float
+        The time interval between iterations
+    * iterations : int
+        Number of time steps to take
+    * sources : list
+        A list of the sources of waves
+        (see :class:`~fatiando.seismic.wavefd.GaussSource` for an example
+        source)
+    * stations : None or list
+        If not None, then a list of [x, y, z] pairs with the (x,y,z)
+        coordinates of the recording stations.
+        These are physical coordinates, not the indexes
+    * snapshot : None or int
+        If not None, than yield a snapshot of the displacement at every
+        *snapshot* iterations.
+    * padding : int
+        Number of grid nodes to use for the absorbing boundary region
+    * taper : float
+        The intensity of the Gaussian taper function used for the absorbing
+        boundary conditions
+
+    Yields:
+
+    * t, pt, seismograms : int, 3D-array and list of 1D-arrays
+        The current iteration, the pressure disturbance and a list
+        of the displacements recorded at each station until the
+        current iteration.
+
+    """
+    if c.shape != c.shape:
+        raise ValueError('Density and velocity grids should have same shape')
+
+    x1, x2, y1, y2, z1, z2 = area
+    nz, ny, nx = c.shape
+    dz, dy, dx = (z2 - z1) / (nz - 1), (y2 - y1) / (ny - 1), (x2 - x1) / (nx - 1)
+    # Get the index of the closest point to the stations and start the
+    # seismograms
+    if stations is not None:  # turn stations coordinates to indexes
+        stations = [[int(round((z - z1) / dz)), int(round((y - y1) / dx)),
+                     int(round(x - x1) / dx)] for x, y, z in stations]
+        seismograms = [numpy.zeros(iterations) for i in xrange(len(stations))]
+    else:
+        stations, seismograms = [], []
+    # Add some padding to x, y and z. The padding region is where the wave is
+    # absorbed
+    pad = int(padding)
+    nx += 2 * pad
+    ny += 2 * pad
+    nz += pad
+    c_pad = _add_pad(c, pad, (nz, ny, nx))
+    # Pack the particle position u at 2 different times in one 3d array
+    # u[0] = u(t-1)
+    # u[1] = u(t)
+    # The next time step overwrites the t-1 panel
+    u = numpy.zeros((2, nz, ny, nx), dtype=numpy.float)
+    # Compute and yield the initial solutions
+    for src in sources:
+        k, j, i = src.indexes()
+        u[1, k, j + pad, i + pad] += - ((c[k, j, i]*dt)**2)*src(0)
+    # Update seismograms
+    for station, seismogram in zip(stations, seismograms):
+        k, j, i = station
+        seismogram[0] = u[1, k, j + pad, i + pad]
+    if snapshot is not None:
+        yield 0, u[1, :-pad, pad:-pad, pad:-pad], seismograms
+    for iteration in xrange(1, iterations):
+        t, tm1 = iteration % 2, (iteration + 1) % 2
+        tp1 = tm1
+        _step_scalar3(u[tp1], u[t], u[tm1], 2, nx - 2, 2, ny - 2,
+                          2, nz - 2, dt, dx, dy, dz, c_pad)
+        _apply_damping3(u[t], nx, ny, nz, pad, taper)
+        # not PML yet or anything similar
+        _nonreflexive3_scalar_boundary_conditions(u[tm1], u[t], u[tp1], dt, dx, dy, dz, c_pad, nx, ny, nz)
+        _apply_damping3(u[tp1], nx, ny, nz, pad, taper)
+        for src in sources:
+            k, j, i = src.indexes()
+            u[tp1, k, j + pad, i + pad] += -((c[k, j, i]*dt)**2)*src(iteration*dt)
+        # Update seismograms
+        for station, seismogram in zip(stations, seismograms):
+            k, j, i = station
+            seismogram[iteration] = u[tp1, k, j + pad, i + pad]
+        if snapshot is not None and iteration % snapshot == 0:
+            yield iteration, u[tp1, :-pad, pad:-pad, pad:-pad], seismograms
+    yield iteration, u[tp1, :-pad, pad:-pad, pad:-pad], seismograms
 
 
 def elastic_sh(mu, density, area, dt, iterations, sources, stations=None,
@@ -884,16 +1116,15 @@ def xz2ps(ux, uz, area):
 def maxdt(area, shape, maxvel):
     """
     Calculate the maximum time step that can be used in the simulation.
-
-    Uses the result of the Von Neumann type analysis of Di Bartolo et al.
-    (2012).
+    2D/3D Uses the result of the Von Neumann type analysis of Di Bartolo et al.
+    (2012) from Saenger et al. 2000.
 
     Parameters:
 
-    * area : [xmin, xmax, zmin, zmax]
+    * area : [xmin, xmax, zmin, zmax] or  [xmin, xmax, ymin, ymax, zmin, zmax]
         The x, z limits of the simulation area, e.g., the shallowest point is
         at zmin, the deepest at zmax.
-    * shape : (nz, nx)
+    * shape : (nz, nx) or (nz, ny, nx)
         The number of nodes in the finite difference grid
     * maxvel : float
         The maximum velocity in the medium
@@ -904,11 +1135,20 @@ def maxdt(area, shape, maxvel):
         The maximum time step
 
     """
-    x1, x2, z1, z2 = area
-    nz, nx = shape
-    spacing = min([(x2 - x1) / (nx - 1), (z2 - z1) / (nz - 1)])
-    return 0.606 * spacing / maxvel
-
+    if len(shape) == 2:
+        x1, x2, z1, z2 = area
+        nz, nx = shape
+        spacing = min([(x2 - x1) / (nx - 1), (z2 - z1) / (nz - 1)])
+        #factor = 1./(numpy.sqrt(2)*7./6)
+        return 0.606 * spacing / maxvel
+    else:  # 3D
+        x1, x2, y1, y2, z1, z2 = area
+        nz, ny, nx = shape
+        spacing = min([(x2 - x1) / (nx - 1), (y2 - y1) / (ny - 1), (z2 - z1) / (nz - 1)])
+        factor = 1./(numpy.sqrt(3)*7./6)
+        factor -= 5*factor/100.  # 5% smaller to guarantee criteria
+        # the closer to stability criteria the better the convergence
+        return factor * spacing / maxvel
 
 def scalar_maxdt(area, shape, maxvel):
     r"""
@@ -954,6 +1194,6 @@ def scalar_maxdt(area, shape, maxvel):
     nz, nx = shape
     spacing = min([(x2 - x1) / (nx - 1), (z2 - z1) / (nz - 1)])
     factor = numpy.sqrt(3. / 8.)
-    factor -= factor / 100.  # 1% smaller to guarantee criteria
+    factor -= factor / 100. # 1% smaller to guarantee criteria
     # the closer to stability criteria the better the convergence
     return factor * spacing / maxvel
