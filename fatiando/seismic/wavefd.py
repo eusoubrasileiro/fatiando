@@ -635,42 +635,39 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
     else:
         stations, seismograms = [], []
     # Add some padding to x and z. The padding region is where the wave is
-    # absorbed
+    # absorbed by gaussian dumping
     pad = int(padding)
     if pad == -1:   # default 5% percent nz
-        pad = int(0.05*nz) + 2
+        pad = int(0.05*nz) + 2  # plus 2 due 4th order
     nx += 2*pad
     nz += pad
     # Pad the velocity as well
     vel_pad = _add_pad(vel, pad, (nz, nx))
-    # Pack the particle position u at 2 different times in one 3d array
-    # u[0] = u(t-1)
-    # u[1] = u(t)
-    # The next time step overwrites the t-1 panel
-    u = numpy.zeros((2, nz, nx), dtype=numpy.float)
+    # Pack the particle position u at 3 different times in one 3d array
+    u = numpy.zeros((3, nz, nx), dtype=numpy.float)
     # Compute and yield the initial solutions
     for src in sources:
         i, j = src.indexes()
-        u[1, i, j + pad] += -((vel[i,j]*dt)**2)*src(0)
+        u[2, i, j + pad] += -((vel[i,j]*dt)**2)*src(0)
     # Update seismograms
     for station, seismogram in zip(stations, seismograms):
         i, j = station
-        seismogram[0] = u[1, i, j + pad]
+        seismogram[0] = u[2, i, j + pad]
     if snapshot is not None:
-        yield 0, u[1, :-pad, pad:-pad], seismograms
-
+        yield 0, u[2, :-pad, pad:-pad], seismograms
     for iteration in xrange(1, iterations):
-        t, tm1 = iteration%2, (iteration + 1)%2
-        tp1 = tm1
+        tm1, t, tp1 = iteration % 3, (iteration+1) % 3, (iteration+2) % 3  # to avoid copying between panels
+        # dumping not working with Reynolds need to fix apply dumping
+        # # Damp the regions in the padding to make waves go to infinity
+        # # apply dumping just outside the nonreflexive boundary conditions
+        # _apply_damping(u[tm1], nx-2, nz-2, pad-2, taper)
+        # _apply_damping(u[t], nx-2, nz-2, pad-2, taper)
         _step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
                      dt, ds, vel_pad)
+        # _apply_damping(u[tp1], nx-2, nz-2, pad-2, taper)
         # forth order +2-2 indexes needed
-        # Damp the regions in the padding to make waves go to infinity
-        #_apply_damping(u[t], nx, nz, pad, taper)
-        # not PML yet or anything similar
+        # apply Reynolds 1d plane wave absorbing condition
         _nonreflexive_scalar_boundary_conditions(u[tp1], u[t], u[tm1], vel_pad, dt, ds, nx, nz)
-        # Damp the regions in the padding to make waves go to infinity
-        #_apply_damping(u[tp1], nx, nz, pad, taper)
         for src in sources:
             i, j = src.indexes()
             u[tp1, i, j + pad] += -((vel[i,j]*dt)**2)*src(iteration*dt)
@@ -754,30 +751,24 @@ def scalar3(c, area, dt, iterations, sources, stations=None,
     ny += 2 * pad
     nz += pad
     c_pad = _add_pad(c, pad, (nz, ny, nx))
-    # Pack the particle position u at 2 different times in one 3d array
-    # u[0] = u(t-1)
-    # u[1] = u(t)
-    # The next time step overwrites the t-1 panel
-    u = numpy.zeros((2, nz, ny, nx), dtype=numpy.float)
+    # Pack the particle position u at 3 different times in one 3d array
+    u = numpy.zeros((3, nz, ny, nx), dtype=numpy.float)
     # Compute and yield the initial solutions
     for src in sources:
         k, j, i = src.indexes()
-        u[1, k, j + pad, i + pad] += - ((c[k, j, i]*dt)**2)*src(0)
+        u[2, k, j + pad, i + pad] += - ((c[k, j, i]*dt)**2)*src(0)
     # Update seismograms
     for station, seismogram in zip(stations, seismograms):
         k, j, i = station
-        seismogram[0] = u[1, k, j + pad, i + pad]
+        seismogram[0] = u[2, k, j + pad, i + pad]
     if snapshot is not None:
-        yield 0, u[1, :-pad, pad:-pad, pad:-pad], seismograms
+        yield 0, u[2, :-pad, pad:-pad, pad:-pad], seismograms
     for iteration in xrange(1, iterations):
-        t, tm1 = iteration % 2, (iteration + 1) % 2
-        tp1 = tm1
-        _step_scalar3(u[tp1], u[t], u[tm1], 2, nx - 2, 2, ny - 2,
+        tm1, t, tp1 = iteration % 3, (iteration + 1) % 3, (iteration + 2) % 3  # to avoid copying between panels
+        _step_scalar3(u[tm1], u[t], u[tp1], 2, nx - 2, 2, ny - 2,
                           2, nz - 2, dt, dx, dy, dz, c_pad)
-        _apply_damping3(u[t], nx, ny, nz, pad, taper)
-        # not PML yet or anything similar
+        # apply 1d Reynolds for plane waves
         _nonreflexive3_scalar_boundary_conditions(u[tm1], u[t], u[tp1], dt, dx, dy, dz, c_pad, nx, ny, nz)
-        _apply_damping3(u[tp1], nx, ny, nz, pad, taper)
         for src in sources:
             k, j, i = src.indexes()
             u[tp1, k, j + pad, i + pad] += -((c[k, j, i]*dt)**2)*src(iteration*dt)
