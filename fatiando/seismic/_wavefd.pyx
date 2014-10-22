@@ -2,12 +2,10 @@
 Cython implementation of the time stepping functions for
 fatiando.seismic.wavefd
 """
-import numpy
 
 from libc.math cimport exp, sqrt
 # Import Cython definitions for numpy
 from cython.parallel cimport prange
-from cython.parallel cimport parallel
 cimport numpy
 cimport cython
 ctypedef numpy.float_t double
@@ -21,10 +19,9 @@ __all__ = [
     '_nonreflexive_sh_boundary_conditions',
     '_nonreflexive_psv_boundary_conditions',
     '_nonreflexive_scalar_boundary_conditions',
-    '_nonreflexive3_scalar_boundary_conditions',
+    '_nonreflexive_scalar3_boundary_conditions',
     '_step_scalar',
     '_step_scalar3',
-    '_step_scalar3x'
     ]
 
 @cython.boundscheck(False)
@@ -373,7 +370,7 @@ def _step_scalar(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _nonreflexive3_scalar_boundary_conditions(
+def _nonreflexive_scalar3_boundary_conditions(
     double[:,:,::1] u_tm1 not None,
     double[:,:,::1] u_t not None,
     double[:,:,::1] u_tp1 not None,
@@ -442,35 +439,7 @@ def _step_scalar3(
     """
     cdef unsigned int k, i, j
 
-    for k in xrange(z1, z2):
-        for j in xrange(y1, y2):
-            for i in xrange(x1, x2):
-                u_tp1[k,j,i] = (2.*u_t[k,j,i] - u_tm1[k,j,i] +
-                    (((c[k,j,i]*dt/dx)**2)*(
-                        (-u_t[k,j,i+2] + 16.*u_t[k,j,i+1] - 30.*u_t[k,j,i] +
-                         16.*u_t[k,j,i-1] - u_t[k,j,i-2])/12.)
-                    + ((c[k,j,i]*dt/dz)**2)*(
-                        (-u_t[k+2,j,i] + 16.*u_t[k+1,j,i] - 30.*u_t[k,j,i] +
-                         16.*u_t[k-1,j,i] - u_t[k-2,j,i])/12.)
-                    + ((c[k,j,i]*dt/dy)**2)*(
-                        (-u_t[k,j+2,i] + 16.*u_t[k,j+1,i] - 30.*u_t[k,j,i] +
-                         16.*u_t[k,j-1,i] - u_t[k,j-2,i])/12.)))
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-def _step_scalar3x(
-    double[:,:,::1] u_tm1 not None,
-    double[:,:,::1] u_t not None,
-    double[:,:,::1] u_tp1 not None,
-    unsigned int x1, unsigned int x2,
-    unsigned int y1, unsigned int y2,
-    unsigned int z1, unsigned int z2,
-    double dt, double dx, double dy, double dz,
-    double[:,:, ::1] c not None):
-
-    cdef unsigned int k, i, j
-
-    with nogil, parallel():
+    with nogil:
         for k in prange(z1, z2):
             for j in xrange(y1, y2):
                 for i in xrange(x1, x2):

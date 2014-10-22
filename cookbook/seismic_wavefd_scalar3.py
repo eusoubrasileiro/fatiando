@@ -1,6 +1,7 @@
 """
 Seismic: 3D finite difference
-North and Down velocity gradient
+A step block down in front right direction
+  with slower velocity
 """
 import numpy as np
 import sys

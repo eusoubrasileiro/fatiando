@@ -144,8 +144,8 @@ except:
     _nonreflexive_psv_boundary_conditions = not_implemented
     _step_scalar = not_implemented
     _step_scalar3 = not_implemented
-    _step_scalar3x = not_implemented
     _nonreflexive_scalar_boundary_conditions = not_implemented
+    _nonreflexive_scalar3_boundary_conditions = not_implemented
 
 
 # Finite differences wave equation support geometric classes ICoord3 and ICoord2
@@ -767,10 +767,10 @@ def scalar3(c, area, dt, iterations, sources, stations=None,
         yield 0, u[2, :-pad, pad:-pad, pad:-pad], seismograms
     for iteration in xrange(1, iterations):
         tm1, t, tp1 = iteration % 3, (iteration + 1) % 3, (iteration + 2) % 3  # to avoid copying between panels
-        _step_scalar3x(u[tm1], u[t], u[tp1], 2, nx - 2, 2, ny - 2,
+        _step_scalar3(u[tm1], u[t], u[tp1], 2, nx - 2, 2, ny - 2,
                           2, nz - 2, dt, dx, dy, dz, c_pad)
         # apply 1d Reynolds for plane waves
-        _nonreflexive3_scalar_boundary_conditions(u[tm1], u[t], u[tp1], dt, dx, dy, dz, c_pad, nx, ny, nz)
+        _nonreflexive_scalar3_boundary_conditions(u[tm1], u[t], u[tp1], dt, dx, dy, dz, c_pad, nx, ny, nz)
         for src in sources:
             k, j, i = src.indexes()
             u[tp1, k, j + pad, i + pad] += -((c[k, j, i]*dt)**2)*src(iteration*dt)
