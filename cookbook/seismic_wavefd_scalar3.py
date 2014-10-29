@@ -10,7 +10,7 @@ from fatiando.seismic import wavefd
 # Set the parameters of the finite difference grid 3D
 shape = (100, 100, 100)
 ds = 10.  # spacing
-area = [0, shape[0]*ds, 0, shape[1]*ds, 0, shape[2]*ds]
+area = [0, shape[2]*ds, 0, shape[1]*ds, 0, shape[0]*ds]
 # Set the parameters of the finite difference grid
 velocity = np.ones(shape)*2500.  # m/s
 velocity[50:100, 50:100, 50:100] = 1500. # m/s

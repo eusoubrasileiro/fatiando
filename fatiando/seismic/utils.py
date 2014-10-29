@@ -73,3 +73,38 @@ def nmo2(t0, vrms, cmp_gather, dt, ds, stretching=0.4):
     return cmp_nmo
 
 
+def vrms_n (n, vi, twt):
+    """
+    RMS velocity from layer 0 to layer n
+
+    * n : int
+        layer index to where vrms will be calculated
+    * vi : ndarray
+        interval velocity array
+    * twt : ndarray
+        two way time for each layer vi
+
+    """
+    vrms_n = 0.
+    t0 = 0.
+    for i in range(n):
+        vrms_n += twt[i]*vi[i]**2
+        t0 += twt[i]
+
+    return np.sqrt(vrms_n/t0)
+
+def vrms(vi, ds):
+    """
+    Calculate RMS velocity from:
+
+    * vi : ndarray
+        interval velocity array size
+    * ds : ndarray
+        layer size
+
+    return Rms velocity array
+    """
+    twt = 2*(ds/vi) # two way time
+    return [ vrms_n(i, vi, twt) for i in range(1,len(vi)+1) ]
+
+twt = 2*(ds/vi) # two way time

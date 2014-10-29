@@ -623,15 +623,10 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
     x1, x2, z1, z2 = area
     dz, dx = (z2 - z1)/(nz - 1), (x2 - x1)/(nx - 1)
 
-    if dz != dx:
-        raise ValueError('Space increment must be equal in x and z')
-
-    ds = dz # dz or dx doesn't matter
-
     # Get the index of the closest point to the stations and start the
     # seismograms
     if stations is not None:
-        stations = [[int(round((z - z1)/ds)), int(round((x - x1)/ds))]
+        stations = [[int(round((z - z1)/dz)), int(round((x - x1)/dx))]
                     for x, z in stations]
         seismograms = [numpy.zeros(iterations) for i in xrange(len(stations))]
     else:
@@ -665,11 +660,11 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
         # _apply_damping(u[tm1], nx-2, nz-2, pad-2, taper)
         # _apply_damping(u[t], nx-2, nz-2, pad-2, taper)
         _step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
-                     dt, ds, vel_pad)
+                     dt, dx, dz, vel_pad)
         # _apply_damping(u[tp1], nx-2, nz-2, pad-2, taper)
         # forth order +2-2 indexes needed
         # apply Reynolds 1d plane wave absorbing condition
-        _nonreflexive_scalar_boundary_conditions(u[tp1], u[t], u[tm1], vel_pad, dt, ds, nx, nz)
+        _nonreflexive_scalar_boundary_conditions(u[tp1], u[t], u[tm1], vel_pad, dt, dx, dz, nx, nz)
         for src in sources:
             i, j = src.indexes()
             u[tp1, i, j + pad] += -((vel[i,j]*dt)**2)*src(iteration*dt)

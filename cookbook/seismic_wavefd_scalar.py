@@ -13,17 +13,17 @@ from fatiando.vis import mpl
 
 # Set the parameters of the finite difference grid
 shape = (200, 200)
-ds = 100. # spacing
-area = [0, shape[0]*ds, 0, shape[1]*ds]
+dx = dz = 100. # spacing
+area = [0, shape[1]*dx, 0, shape[0]*dz]
 # Set the parameters of the finite difference grid
 velocity = np.zeros(shape)+6000.
 velocity[100:,100:] = 0.
 fc = 15.
-sources = [wavefd.GaussSource((125*ds, 75*ds), area, shape,  1., fc)]
+sources = [wavefd.GaussSource((125*dx, 75*dz), area, shape,  1., fc)]
 dt = wavefd.scalar_maxdt(area, shape, np.max(velocity))
 duration = 1.9
 maxit = int(duration/dt)
-stations = [[75*ds, 125*ds]] # x, z coordinate of the seismometer
+stations = [[75*dx, 125*dz]] # x, z coordinate of the seismometer
 snapshots = 3 # every 3 iterations plots one
 simulation = wavefd.scalar(velocity, area, dt, maxit, sources, stations, snapshots)
 
