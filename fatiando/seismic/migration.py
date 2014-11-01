@@ -26,6 +26,7 @@ def rtmscalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, ta
 
     * vel : 2D-array (defines shape simulation)
         The wave velocity at all the grid nodes, must be half the original velocity for migration.
+        The depth velocity model.
     * area : [xmin, xmax, zmin, zmax]
         The x, z limits of the simulation area, e.g., the shallowest point is
         at zmin, the deepest at zmax.
@@ -57,10 +58,10 @@ def rtmscalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, ta
 
     """
 
-    if boundary.shape != vel.shape:
+    if boundary.shape[1] != vel.shape[1]:  # just x must be equal
         raise IndexError("boundary must have same shape as velocity")
     if iterations != boundary.shape[0]:
-        raise IndexError("Same numer of interations needed for rtm")
+        raise IndexError("Same number of interations needed for rtm")
 
     nz, nx = numpy.shape(vel) # get simulation dimensions
     x1, x2, z1, z2 = area
@@ -78,22 +79,26 @@ def rtmscalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, ta
     # Pack the particle position u at 3 different times in one 3d array
     u = numpy.zeros((3, nz, nx), dtype=numpy.float)
     # insert the zero-offset samples reversed in time last ones first. For utp1 at z=0 for every x
-    for j in xrange(nx):
-        u[0, 0, j + pad] -= boundary[0][j]
+    for j in xrange(nx-2*pad):  # tp1
+        u[0, 0, j + pad] = boundary[iterations-1, j]
     if snapshot is not None:
-        yield 0, u[2, :-pad, pad:-pad]
-    for iteration in xrange(1, iterations): # just invert the order to make it reverse in time
-        tp1, t, tm1 = iteration % 3, (iteration+1) % 3, (iteration+2) % 3  # to avoid copying between panels
-        # dumping not working with Reynolds need to fix apply dumping
-        wavefd._step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
+        yield 0, u[0, :-pad, pad:-pad]
+    for j in xrange(nx-2*pad):  # t
+        u[1, 0, j + pad] = boundary[iterations-2, j]
+    if snapshot is not None:
+        yield 1, u[1, :-pad, pad:-pad]
+    for iteration in xrange(2, iterations):
+        tm1, t, tp1 = iteration % 3, (iteration-1) % 3, (iteration-2) % 3  # to avoid copying between panels
+        # invert the order of the input parameters to make it reverse in time
+        wavefd._step_scalar(u[tm1], u[t], u[tp1], 2, nx - 2, 2, nz - 2,
                      dt, dx, dz, vel_pad)
         # _apply_damping(u[tp1], nx-2, nz-2, pad-2, taper)
         # forth order +2-2 indexes needed
         # apply Reynolds 1d plane wave absorbing condition
-        wavefd._nonreflexive_scalar_boundary_conditions(u[tp1], u[t], u[tm1], vel_pad, dt, dx, dz, nx, nz)
+        wavefd._nonreflexive_scalar_boundary_conditions(u[tm1], u[t], u[tp1], vel_pad, dt, dx, dz, nx, nz)
         # insert the zero-offset samples reversed in time last ones first. For utp1 at z=0 for every x
-        for j in xrange(nx):
-            u[tp1, 0, j + pad] -= boundary[iteration][j]
+        for j in xrange(nx-2*pad):
+            u[t, 0, j + pad] = boundary[iterations-(iteration+1), j]
         if snapshot is not None and iteration%snapshot == 0:
-            yield iteration, u[tp1, :-pad, pad:-pad]
-    yield iteration, u[tp1, :-pad, pad:-pad]
+            yield iteration, u[tm1, :-pad, pad:-pad]
+    yield iteration, u[tm1, :-pad, pad:-pad]
