@@ -13,27 +13,27 @@ from fatiando.vis import mpl
 
 # Set the parameters of the finite difference grid
 shape = (200, 200)
-ds = 100. # spacing
-area = [0, shape[0]*ds, 0, shape[1]*ds]
+dx = dz = 100. # spacing
+area = [0, shape[1]*dx, 0, shape[0]*dz]
 # Set the parameters of the finite difference grid
 velocity = np.zeros(shape)+6000.
 velocity[100:,100:] = 0.
 fc = 15.
-sources = [wavefd.GaussSource(125*ds, 75*ds, area, shape,  1., fc)]
+sources = [wavefd.GaussSource((125*dx, 75*dz), area, shape,  1., fc)]
 dt = wavefd.scalar_maxdt(area, shape, np.max(velocity))
-duration = 2.5
+duration = 1.9
 maxit = int(duration/dt)
-stations = [[75*ds, 125*ds]] # x, z coordinate of the seismometer
+stations = [[75*dx, 125*dz]] # x, z coordinate of the seismometer
 snapshots = 3 # every 3 iterations plots one
 simulation = wavefd.scalar(velocity, area, dt, maxit, sources, stations, snapshots)
 
-# This part makes an animation using matplotlibs animation API
+# This part makes an animation using matplotlib animation API
 background = (velocity-4000)*10**-1
 fig = mpl.figure(figsize=(8, 6))
 mpl.subplots_adjust(right=0.98, left=0.11, hspace=0.5, top=0.93)
 mpl.subplot2grid((4, 3), (0,0), colspan=3,rowspan=3)
 wavefield = mpl.imshow(np.zeros_like(velocity), extent=area, cmap=mpl.cm.gray_r,
-                       vmin=-1000, vmax=1000)
+                       vmin=-300, vmax=300)
 mpl.points(stations, '^b', size=8)
 mpl.ylim(area[2:][::-1])
 mpl.xlabel('x (km)')

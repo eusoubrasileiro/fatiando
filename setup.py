@@ -8,10 +8,18 @@ from distutils.core import setup
 from distutils.extension import Extension
 import numpy
 
+import versioneer
+versioneer.VCS = 'git'
+versioneer.versionfile_source = 'fatiando/_version.py'
+versioneer.versionfile_build = 'fatiando/_version.py'
+versioneer.tag_prefix = 'v'
+versioneer.parentdir_prefix = '.'
+
 NAME = 'fatiando'
 FULLNAME = 'Fatiando a Terra'
 DESCRIPTION = "Geophysical modeling and inversion"
-VERSION = '0.3'
+VERSION = versioneer.get_version()
+CMDCLASS = versioneer.get_cmdclass()
 try:
     with open("README.rst") as f:
         LONG_DESCRIPTION = ''.join(f.readlines())
@@ -54,11 +62,11 @@ if os.name == 'posix':
 omp_args = dict(extra_link_args=['-fopenmp'], extra_compile_args=['-fopenmp'])
 C_EXT = [[['fatiando', 'gravmag', '_tesseroid'], {}],
          [['fatiando', 'seismic', '_ttime2d'], {}],
-         [['fatiando', 'seismic', '_wavefd'], {}],
+         [['fatiando', 'seismic', '_wavefd'], omp_args],
          [['fatiando', 'gravmag', '_polyprism'], omp_args],
          [['fatiando', 'gravmag', '_sphere'], omp_args],
          [['fatiando', 'gravmag', '_prism'], omp_args],
-        ]
+         ]
 extensions = []
 for e, extra_args in C_EXT:
     extensions.append(
@@ -69,21 +77,22 @@ for e, extra_args in C_EXT:
 if USE_CYTHON:
     sys.argv.remove('--cython')
     from Cython.Build import cythonize
+
     extensions = cythonize(extensions)
 
 if __name__ == '__main__':
-	setup(name=NAME,
-		  fullname=FULLNAME,
-		  description=DESCRIPTION,
-		  long_description=LONG_DESCRIPTION,
-		  version=VERSION,
-		  author=AUTHOR,
-		  author_email=AUTHOR_EMAIL,
-		  license=LICENSE,
-		  url=URL,
-		  platforms=PLATFORMS,
-		  scripts=SCRIPTS,
-		  packages=PACKAGES,
-		  ext_modules=extensions,
-		  classifiers=CLASSIFIERS)
-
+    setup(name=NAME,
+          fullname=FULLNAME,
+          description=DESCRIPTION,
+          long_description=LONG_DESCRIPTION,
+          version=VERSION,
+          author=AUTHOR,
+          author_email=AUTHOR_EMAIL,
+          license=LICENSE,
+          url=URL,
+          platforms=PLATFORMS,
+          scripts=SCRIPTS,
+          packages=PACKAGES,
+          ext_modules=extensions,
+          classifiers=CLASSIFIERS,
+          cmdclass=CMDCLASS)
