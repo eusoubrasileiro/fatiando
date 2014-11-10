@@ -674,7 +674,6 @@ def scalar(vel, area, dt, iterations, sources, stations=None,
             seismogram[iteration] = u[tp1, i, j + pad]
         if snapshot is not None and iteration%snapshot == 0:
             yield iteration, u[tp1, :-pad, pad:-pad], seismograms
-    yield iteration, u[tp1, :-pad, pad:-pad], seismograms
 
 
 def scalar3(c, area, dt, iterations, sources, stations=None,

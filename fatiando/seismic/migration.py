@@ -108,7 +108,6 @@ def rt_scalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, ta
             u[t, 0, j + pad] = boundary[iterations-(iteration+1), j]
         if snapshot is not None and iteration%snapshot == 0:
             yield iteration, u[tm1, :-pad, pad:-pad]
-    yield iteration, u[tm1, :-pad, pad:-pad]
 
 
 # def rt_scalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, taper=0.006):
