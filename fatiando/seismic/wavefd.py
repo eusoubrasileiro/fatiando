@@ -1,7 +1,19 @@
 r"""
 Finite difference solution of the 2D wave equation for isotropic media.
 
-* :func:`~fatiando.seismic.wavefd.elastic_psv`: Simulates the coupled P and SV
+This module uses instances of
+:class:`~fatiando.gravmag.normal_gravity.ReferenceEllipsoid` to store the
+physical constants of ellipsoids.
+To create a new ellipsoid, just instantiate ``ReferenceEllipsoid`` and give it
+the semimajor axis ``a``, the flattening ``f``, the geocentric gravitational
+constant ``GM``, and the angular velocity ``omega``.
+All  other quantities, like the gravity at the poles and equator,
+eccentricities, etc, are computed by the class from these 4 parameters.
+
+
+
+
+* :class:`~fatiando.seismic.wavefd.elastic_psv`: Simulates the coupled P and SV
   elastic waves using the Parsimonious Staggered Grid method of Luo and
   Schuster (1990)
 * :func:`~fatiando.seismic.wavefd.elastic_sh`: Simulates SH elastic waves using

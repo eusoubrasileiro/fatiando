@@ -14,7 +14,9 @@ time extrapolations of the wave field.
 
 """
 
+import sys
 import numpy
+from scipy import signal
 from fatiando.seismic import wavefd
 
 def rt_scalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, taper=0.006):
@@ -109,6 +111,91 @@ def rt_scalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, ta
         if snapshot is not None and iteration%snapshot == 0:
             yield iteration, u[tm1, :-pad, pad:-pad]
 
+
+def pre_rtmshot(shot, dt, vdepth, area, fc, source):
+    """
+    Perform pre-stack reverse in time depth migration on a 2D shot gather,
+    Forward and reverse modelling of shots are done using scalar wave equation.
+    For image condition uses the normalized cross-correlation of every grid node.
+
+    Parameters:
+
+    * shot : 2D-array
+        The shot gather, time x space
+    * dt : float
+        sample rate
+    * vdepth : 2D-array
+        The depth velocity field at all receiver positions
+    * area : [xmin, xmax, zmin, zmax]
+         The x, z limits of the shot/velocity area, e.g., the shallowest point is
+         at zmin, the deepest at zmax
+    * fc : source frequency
+        Used for forward modelling based on a Gauss Source
+    * source: (sx, sz)
+        x, z coordinates of source source
+
+     Returns:
+
+    * migrated shot : 2D
+        the depth migrated shot same shape as vdepth
+
+    """
+    # Basic parameters
+    # Set the parameters of the finite difference grid
+    nz, nx = vdepth.shape
+    x1, x2, z1, z2 = area
+    dz, dx = (z2 - z1) / (nz - 1), (x2 - x1) / (nx - 1)
+    ns = shot.shape[0]  # number samples per trace
+
+    # avoiding spatial alias and numerical dispersion based on plane waves v=l*f and Alford et al.
+    # # and using at least 5 points per wavelength
+    eps = 0.98*1./(5*max(dx, dz)*min(1./(2*dx), 1./(2*dz)))
+    idealfc = eps*numpy.min(vdepth)/(max(2*dx, 2*dz))
+    if fc > idealfc:
+        sys.stdout.write("Warning: the simulation might have strong numerical dispersion making it unusable\n")
+        sys.stdout.write("Warning: consider using a finer velocity model")
+
+    simsource = [wavefd.GaussSource(source, area, (nz, nx),  1., fc)]  # forward simulation source
+    simdt = wavefd.scalar_maxdt(area, vdepth.shape, numpy.max(vdepth))  # forward simulation time step
+    simit = int(numpy.floor(ns*dt/simdt))  # maximum number of iterations needed for forward modelling
+    # run forward modelling of the shot
+    fwdsimulation = wavefd.scalar(vdepth, area, simdt, simit, simsource, snapshot=1, padding=50)
+
+    # dt from signal must be equal to dt from simulation, so resample it first
+    # resample the input signal is better then resampling everything else
+    simshot = shot
+    if dt != simdt:  #  resample shot if needed
+        if dt > simdt:  # low pass filtering on Nyquest first of shot sample rate
+            # 1/(2*simdt) is equal of Nyquest=1 for the input signal
+            b, a = signal.butter(8, dt/simdt)
+            simshot = signal.filtfilt(b, a, shot, axis=0)
+        simshot = signal.resample(simshot, simit, axis=0)
+
+    # run the forward simulation and record every time step of the grid
+    fwdfield = numpy.zeros((simit, nz, nx))
+    for i, u, seismograms in fwdsimulation:
+        fwdfield[i, :, :] = u
+        sys.stdout.write("\rforward modeling progressing .. %.1f%% time %.3f" % (100.0*float(i)/simit, (simdt*i)))
+        sys.stdout.flush()
+
+    # Reverse in time shot basic parameters same from forward modelling
+    rtmsimulation = rt_scalar(vdepth, area, simdt, simit, simshot, snapshot=1, padding=50)
+
+    # run the reverse time simulation and record every time step of the grid
+    rtmfield = numpy.zeros((simit, nz, nx))
+    for i, u in rtmsimulation:
+        rtmfield[i, :, :] = u
+        sys.stdout.write("\rreverse in time modeling progressing .. %.1f%% time %.3f" % (100.0*float(i)/simit, (simdt*i)))
+        sys.stdout.flush()
+
+    # normalized cross-correlation image condition
+    migratedshot = numpy.zeros((nz, nx))
+    for i in xrange(nz):
+        for j in xrange(nx):
+            migratedshot[i, j] = numpy.dot(rtmfield[:, i, j], fwdfield[::-1, i, j])
+            migratedshot[i, j] /= numpy.sum(fwdfield[:, i, j]**2)
+
+    return migratedshot
 
 # def rt_scalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, taper=0.006):
 #     """
