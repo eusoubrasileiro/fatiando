@@ -1379,7 +1379,12 @@ class ElasticPSV(WaveFD2D):
 class Scalar(WaveFD2D):
     r"""
     Simulate scalar waves using an explicit finite differences scheme 4th order
-    space. Space increment must be equal in x and z.
+    space.
+
+    The top implements a free-surface boundary condition.
+    For the left, right and lower uses boundaries uses
+    Transparent condition of Reynolds, A. C. and also absorbing boundary
+    conditions (Gaussian taper).
 
     Parameters:
 
@@ -1398,6 +1403,12 @@ class Scalar(WaveFD2D):
         boundary conditions
     * verbose: bool
         True to show simulation progress bar
+
+    References:
+
+    * Boundary conditions for numerical solution of wave propagation problems
+    Geophysics p 1099-1110 - 1978
+
 
     """
     def __init__(self, velocity, spacing, cachefile=None, dt=None,
@@ -1678,12 +1689,30 @@ class Scalar(WaveFD2D):
         _step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
                      self.dt, ds, self.velocity)
         # forth order +2-2 indexes needed
+        #for iteration in xrange(1, iterations):
+        # to avoid copying between panels
+        tm1, t, tp1 = iteration % 3, (iteration+1) % 3, (iteration+2) % 3
+        # dumping not working with Reynolds need to fix apply dumping
+        # # Damp the regions in the padding to make waves go to infinity
+        # # apply dumping just outside the nonreflexive boundary conditions
+        # _apply_damping(u[tm1], nx-2, nz-2, pad-2, taper)
+        # _apply_damping(u[t], nx-2, nz-2, pad-2, taper)
+        _step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
+                     self.dt, self.dx, self.dz, self.velocity)
+        # _apply_damping(u[tp1], nx-2, nz-2, pad-2, taper)
+        # forth order +2-2 indexes needed
+        # apply Reynolds 1d plane wave absorbing condition
+        _nonreflexive_scalar_boundary_conditions(
+            u[tp1], u[t], u[tm1], self.velocity, self.dt, self.dx,
+            self.dz, nx, nz)
         # Damp the regions in the padding to make waves go to infinity
-        _apply_damping(u[t], nx, nz, self.padding, self.taper)
+        # dumping not working with Reynolds need to fix apply dumping
+        #_apply_damping(u[t], nx, nz, self.padding, self.taper)
         # not PML yet or anything similar
-        _reflexive_scalar_boundary_conditions(u[tp1], nx, nz)
+        #_nonreflexive_scalar_boundary_conditions(u[tp1], nx, nz)
         # Damp the regions in the padding to make waves go to infinity
-        _apply_damping(u[tp1], nx, nz, self.padding, self.taper)
+        #_apply_damping(u[tp1], nx, nz, self.padding, self.taper)
+
         for pos, src in self.sources:
             j, i = pos
             u[tp1, i, j + self.padding] += src(iteration*self.dt)

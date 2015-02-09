@@ -2,25 +2,25 @@
 Cython implementation of the time stepping functions for
 fatiando.seismic.wavefd
 """
-import numpy
 
 from libc.math cimport exp, sqrt
 # Import Cython definitions for numpy
+from cython.parallel cimport prange
 cimport numpy
 cimport cython
-
-DTYPE = numpy.float
 ctypedef numpy.float_t double
 
 __all__ = [
     '_apply_damping',
+    '_apply_damping3',
     '_step_elastic_sh',
     '_step_elastic_psv',
     '_xz2ps',
     '_nonreflexive_sh_boundary_conditions',
     '_nonreflexive_psv_boundary_conditions',
-    '_reflexive_scalar_boundary_conditions',
-    '_step_scalar']
+    '_nonreflexive_scalar_boundary_conditions',
+    '_step_scalar',
+    ]
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -271,26 +271,51 @@ def _step_elastic_psv(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _reflexive_scalar_boundary_conditions(
-    double[:,::1] u not None,
+def _nonreflexive_scalar_boundary_conditions(
+    double[:,::1] u_tp1 not None,
+    double[:,::1] u_t not None,
+    double[:,::1] u_tm1 not None,
+    double[:,::1] vel not None,
+    double dt, double dx, double dz,
     unsigned int nx, unsigned int nz):
     """
-    Apply the boundary conditions: free-surface at top, fixed on the others.
+    Apply the boundary conditions: free-surface at top, transparent in the borders
     4th order (+2-2) indexes
+
+    Uses Reynolds, A. C. - Boundary conditions for numerical solution of wave propagation problems
+    Geophysics p 1099-1110 - 1978
+    The finite difference approximation used by Reynolds for the transparent boundary condition is of first
+    order, though the scalar schema of propagation is of fourth order in space
+
+
+    TODO: Is it really necessary to store t-1 pane for that??
+    TODO: fix free surface its not really implemented, the wave should invert
+    in phase not just reflect.
     """
     cdef unsigned int i
-    # Top
-    for i in xrange(nx):
-        u[1, i] = u[2, i] #up
-        u[0, i] = u[1, i]
-        u[nz - 1, i] *= 0 #down
-        u[nz - 2, i] *= 0
-    # Sides
+    # # Top free surface:
+    # for i in xrange(nx):
+    #     u_tp1[0, i] = 0.0 #up
+    #     u_tp1[1, i] = 0.0
+    # Transparent boundary condition applied exactly at
+    # The edge of the fourth order calculation.
     for i in xrange(nz):
-        u[i, 0] *= 0 #left
-        u[i, 1] *= 0
-        u[i, nx - 1] *= 0 #right
-        u[i, nx - 2] *= 0
+        # left
+        for p in xrange(2):
+            u_tp1[i, p] = ( u_t[i, p] + u_t[i, p+1] - u_tm1[i,p+1] +
+                (vel[i, p]*dt/dx)*(u_t[i, p+1] - u_t[i, p] - u_tm1[i, p+2] + u_tm1[i, p+1])
+                )
+         #right
+        for p in xrange(2):
+            u_tp1[i, nx-2+p] = ( u_t[i, nx-2+p] + u_t[i, nx-3+p] - u_tm1[i, nx-3+p] -
+                (vel[i, nx-2+p]*dt/dx)*(u_t[i, nx-2+p] - u_t[i, nx-3+p] - u_tm1[i, nx-3+p] + u_tm1[i, nx-4+p])
+                )
+    # Down
+    for i in xrange(nx):
+        for p in xrange(2):
+            u_tp1[nz-2+p, i] = ( u_t[nz-2+p, i] + u_t[nz-3+p, i] - u_tm1[nz-3+p, i] -
+                    (vel[nz-2+p, i]*dt/dz)*(u_t[nz-2+p, i] - u_t[nz-3+p, i] - u_tm1[nz-3+p, i] + u_tm1[nz-4+p, i])
+                    )
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -299,18 +324,22 @@ def _step_scalar(
     double[:,::1] u_t not None,
     double[:,::1] u_tm1 not None,
     unsigned int x1, unsigned int x2, unsigned int z1, unsigned int z2,
-    double dt, double ds,
+    double dt, double dx, double dz,
     double[:,::1] vel not None):
     """
     Perform a single time step in the Finite Difference solution for scalar
     waves 4th order in space
     """
     cdef unsigned int i, j
-    for i in xrange(z1, z2):
-        for j in xrange(x1, x2):
-            u_tp1[i,j] = (2.*u_t[i,j] - u_tm1[i,j]
-                + ((vel[i,j]*dt/ds)**2)*(
-                    (-u_t[i,j + 2] + 16.*u_t[i,j + 1] - 30.*u_t[i,j] +
-                     16.*u_t[i,j - 1] - u_t[i,j - 2])/12. +
-                    (-u_t[i + 2,j] + 16.*u_t[i + 1,j] - 30.*u_t[i,j] +
-                     16.*u_t[i - 1,j] - u_t[i - 2,j])/12.))
+    cdef double cdx = (dt/dx)**2
+    cdef double cdz = (dt/dz)**2
+
+    with nogil:
+        for i in prange(z1, z2):
+            for j in xrange(x1, x2):
+                u_tp1[i,j] = (2.*u_t[i,j] - u_tm1[i,j]
+                    + (vel[i,j]**2)*(
+                        cdx*(-u_t[i,j + 2] + 16.*u_t[i,j + 1] - 30.*u_t[i,j] +
+                        16.*u_t[i,j - 1] - u_t[i,j - 2])/12. +
+                        cdz*(-u_t[i + 2,j] + 16.*u_t[i + 1,j] - 30.*u_t[i,j] +
+                        16.*u_t[i - 1,j] - u_t[i - 2,j])/12.))
