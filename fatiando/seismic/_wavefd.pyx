@@ -286,34 +286,36 @@ def _nonreflexive_scalar_boundary_conditions(
     The finite difference approximation used by Reynolds for the transparent boundary condition is of first
     order, though the scalar schema of propagation is of fourth order in space
 
-    Working on boundary to make it work with just 2 panels
-    like in 1D: 2n order space and time
-
     """
     cdef unsigned int i
-    # # Top free surface:
-    # for i in xrange(nx):
-    #     u_tp1[0, i] = 0.0 #up
-    #     u_tp1[1, i] = 0.0
-    # Transparent boundary condition applied exactly at
-    # The edge
+
+    # To make reynolds (2nd order space) work for 4th order in space
+    # With just 2 panels (t and tm1) where tm1 becomes tp1
+    # We apply 1D reynolds at -2/-1 and +2/+1 respectively and it works
+    # it just works like bellow. I don´t know why though.
+    # The the last valid cells are at x [2, nx-3] z [0, nz-3].
+    # we always apply outside like instructed by Reynolds.
+    # Also you must use absorbing boundary before step_scalar in the loop
+
     for i in xrange(nz):
         # left
-        p = 2
-        u_tp1[i, p] = ( u_t[i, p] + u_t[i, p+1] - u_tm1[i,p+1] +
-            (vel[i, p]*dt/dx)*(u_t[i, p+1] - u_t[i, p] - u_tm1[i, p+2] + u_tm1[i, p+1])
-            )
-         #right
-        #for p in xrange(2):
-        #    u_tp1[i, nx-2+p] = ( u_t[i, nx-2+p] + u_t[i, nx-3+p] - u_tm1[i, nx-3+p] -
-        #        (vel[i, nx-2+p]*dt/dx)*(u_t[i, nx-2+p] - u_t[i, nx-3+p] - u_tm1[i, nx-3+p] + u_tm1[i, nx-4+p])
-        #        )
+        for p in xrange(2):
+                u_tp1[i, p] = ( u_t[i, p] + u_t[i, p+1] - u_tm1[i,p+1] +
+                (vel[i, p]*dt/dx)*(u_t[i, p+1] - u_t[i, p] - u_tm1[i, p+2] + u_tm1[i, p+1])
+                )
+        #right
+        for p in xrange(2): 
+            p = 1-p            
+            u_tp1[i, nx-2+p] = ( u_t[i, nx-2+p] + u_t[i, nx-3+p] - u_tm1[i, nx-3+p] -
+                (vel[i, nx-2+p]*dt/dx)*(u_t[i, nx-2+p] - u_t[i, nx-3+p] - u_tm1[i, nx-3+p] + u_tm1[i, nx-4+p])
+                )
     # Down
-    #for i in xrange(nx):
-        #for p in xrange(2):
-        #    u_tp1[nz-2+p, i] = ( u_t[nz-2+p, i] + u_t[nz-3+p, i] - u_tm1[nz-3+p, i] -
-        #            (vel[nz-2+p, i]*dt/dz)*(u_t[nz-2+p, i] - u_t[nz-3+p, i] - u_tm1[nz-3+p, i] + u_tm1[nz-4+p, i])
-        #            )
+    for i in xrange(nx):
+        for p in xrange(2):
+            p = 1-p
+            u_tp1[nz-2+p, i] = ( u_t[nz-2+p, i] + u_t[nz-3+p, i] - u_tm1[nz-3+p, i] -
+                    (vel[nz-2+p, i]*dt/dz)*(u_t[nz-2+p, i] - u_t[nz-3+p, i] - u_tm1[nz-3+p, i] + u_tm1[nz-4+p, i])
+                    )
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

@@ -21,7 +21,7 @@ velocity[100:, 100:] = 0.
 fc = 15.
 simulation = wavefd.Scalar(velocity, (ds, ds))
 simulation.add_point_source((125, 75), -1*wavefd.Gauss(1., fc))
-duration = 2.1
+duration = 2.6
 maxit = int(duration / simulation.dt)
 maxt = duration
 
@@ -48,7 +48,6 @@ times = np.linspace(0, maxt, maxit)
 
 simulation.run(maxit)
 seismogram = simulation[:, 125, 75]  # (time, z and x) shape
-
 
 def animate(i):
     u = simulation[i]
