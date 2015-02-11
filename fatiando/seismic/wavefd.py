@@ -188,9 +188,9 @@ from matplotlib import pyplot as plt
 import h5py
 
 try:
-    from ._wavefd import *
+    from _wavefd import *
 except:
-    def not_implemented():
+    def not_implemented(**kwargs):
         raise NotImplementedError(
             "Couldn't load C coded extension module.")
     _apply_damping = not_implemented
@@ -200,7 +200,7 @@ except:
     _nonreflexive_sh_boundary_conditions = not_implemented
     _nonreflexive_psv_boundary_conditions = not_implemented
     _step_scalar = not_implemented
-    _reflexive_scalar_boundary_conditions = not_implemented
+    _nonreflexive_scalar_boundary_conditions = not_implemented
 
 
 class Source(six.with_metaclass(ABCMeta)):
@@ -1685,26 +1685,25 @@ class Scalar(WaveFD2D):
         # due dump regions
         nz += self.padding
         nx += self.padding*2
-        ds = self.dx  # increment equal
-        _step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
-                     self.dt, ds, self.velocity)
+        #_step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
+        #             self.dt, ds, self.velocity)
         # forth order +2-2 indexes needed
         #for iteration in xrange(1, iterations):
         # to avoid copying between panels
-        tm1, t, tp1 = iteration % 3, (iteration+1) % 3, (iteration+2) % 3
+        #tm1, t, tp1 = iteration % 3, (iteration+1) % 3, (iteration+2) % 3
         # dumping not working with Reynolds need to fix apply dumping
         # # Damp the regions in the padding to make waves go to infinity
         # # apply dumping just outside the nonreflexive boundary conditions
         # _apply_damping(u[tm1], nx-2, nz-2, pad-2, taper)
         # _apply_damping(u[t], nx-2, nz-2, pad-2, taper)
-        _step_scalar(u[tp1], u[t], u[tm1], 2, nx - 2, 2, nz - 2,
+        _nonreflexive_scalar_boundary_conditions(
+            u[tp1], u[t], u[tm1], self.velocity, self.dt, self.dx,
+            self.dz, nx, nz)
+        _step_scalar(u[tp1], u[t], u[tm1], 3, nx - 3, 3, nz - 3,
                      self.dt, self.dx, self.dz, self.velocity)
         # _apply_damping(u[tp1], nx-2, nz-2, pad-2, taper)
         # forth order +2-2 indexes needed
         # apply Reynolds 1d plane wave absorbing condition
-        _nonreflexive_scalar_boundary_conditions(
-            u[tp1], u[t], u[tm1], self.velocity, self.dt, self.dx,
-            self.dz, nx, nz)
         # Damp the regions in the padding to make waves go to infinity
         # dumping not working with Reynolds need to fix apply dumping
         #_apply_damping(u[t], nx, nz, self.padding, self.taper)

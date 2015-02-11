@@ -4,15 +4,14 @@ fatiando.seismic.wavefd
 """
 
 from libc.math cimport exp, sqrt
-# Import Cython definitions for numpy
-from cython.parallel cimport prange
 cimport numpy
 cimport cython
 ctypedef numpy.float_t double
+# Import Cython definitions for numpy
+from cython.parallel cimport prange
 
 __all__ = [
     '_apply_damping',
-    '_apply_damping3',
     '_step_elastic_sh',
     '_step_elastic_psv',
     '_xz2ps',
@@ -287,10 +286,9 @@ def _nonreflexive_scalar_boundary_conditions(
     The finite difference approximation used by Reynolds for the transparent boundary condition is of first
     order, though the scalar schema of propagation is of fourth order in space
 
+    Working on boundary to make it work with just 2 panels
+    like in 1D: 2n order space and time
 
-    TODO: Is it really necessary to store t-1 pane for that??
-    TODO: fix free surface its not really implemented, the wave should invert
-    in phase not just reflect.
     """
     cdef unsigned int i
     # # Top free surface:
@@ -298,24 +296,24 @@ def _nonreflexive_scalar_boundary_conditions(
     #     u_tp1[0, i] = 0.0 #up
     #     u_tp1[1, i] = 0.0
     # Transparent boundary condition applied exactly at
-    # The edge of the fourth order calculation.
+    # The edge
     for i in xrange(nz):
         # left
-        for p in xrange(2):
-            u_tp1[i, p] = ( u_t[i, p] + u_t[i, p+1] - u_tm1[i,p+1] +
-                (vel[i, p]*dt/dx)*(u_t[i, p+1] - u_t[i, p] - u_tm1[i, p+2] + u_tm1[i, p+1])
-                )
+        p = 2
+        u_tp1[i, p] = ( u_t[i, p] + u_t[i, p+1] - u_tm1[i,p+1] +
+            (vel[i, p]*dt/dx)*(u_t[i, p+1] - u_t[i, p] - u_tm1[i, p+2] + u_tm1[i, p+1])
+            )
          #right
-        for p in xrange(2):
-            u_tp1[i, nx-2+p] = ( u_t[i, nx-2+p] + u_t[i, nx-3+p] - u_tm1[i, nx-3+p] -
-                (vel[i, nx-2+p]*dt/dx)*(u_t[i, nx-2+p] - u_t[i, nx-3+p] - u_tm1[i, nx-3+p] + u_tm1[i, nx-4+p])
-                )
+        #for p in xrange(2):
+        #    u_tp1[i, nx-2+p] = ( u_t[i, nx-2+p] + u_t[i, nx-3+p] - u_tm1[i, nx-3+p] -
+        #        (vel[i, nx-2+p]*dt/dx)*(u_t[i, nx-2+p] - u_t[i, nx-3+p] - u_tm1[i, nx-3+p] + u_tm1[i, nx-4+p])
+        #        )
     # Down
-    for i in xrange(nx):
-        for p in xrange(2):
-            u_tp1[nz-2+p, i] = ( u_t[nz-2+p, i] + u_t[nz-3+p, i] - u_tm1[nz-3+p, i] -
-                    (vel[nz-2+p, i]*dt/dz)*(u_t[nz-2+p, i] - u_t[nz-3+p, i] - u_tm1[nz-3+p, i] + u_tm1[nz-4+p, i])
-                    )
+    #for i in xrange(nx):
+        #for p in xrange(2):
+        #    u_tp1[nz-2+p, i] = ( u_t[nz-2+p, i] + u_t[nz-3+p, i] - u_tm1[nz-3+p, i] -
+        #            (vel[nz-2+p, i]*dt/dz)*(u_t[nz-2+p, i] - u_t[nz-3+p, i] - u_tm1[nz-3+p, i] + u_tm1[nz-4+p, i])
+        #            )
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -330,7 +328,7 @@ def _step_scalar(
     Perform a single time step in the Finite Difference solution for scalar
     waves 4th order in space
     """
-    cdef unsigned int i, j
+    cdef int i, j
     cdef double cdx = (dt/dx)**2
     cdef double cdz = (dt/dz)**2
 
