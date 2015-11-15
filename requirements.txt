@@ -1,9 +1,8 @@
-IPython
 numpy
 scipy
 matplotlib
 basemap
+imaging
+numba
+ipython
 mayavi
-PIL
-h5py
-six

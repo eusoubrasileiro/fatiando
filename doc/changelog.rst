@@ -10,11 +10,72 @@ Version (development)
 
 **Changes**:
 
-* Complete re-implementation of
-  :ref:`fatiando.seismic.wavefd <fatiando_seismic_wavefd>`
-  from methods to simulation classes using HDF5 file format and rich display
-  features of IPython notebook. Old code still remains but should be avoided.
-  (`PR 137 <https://github.com/fatiando/fatiando/pull/137>`_)
+* **BUG FIX**: Tesseroid computations failed (silently) when tesseroids were
+  smaller than 1e-6 degrees on a side (~ 10 cm). Code now ignores these
+  tesseroids on input and warns the user about it. If a tesseroid becomes
+  smaller than this during adaptive discretization, the tesseroid effect will
+  be computed without division.  The user will be warned when this happens.
+  (`PR 228 <https://github.com/fatiando/fatiando/pull/228>`__)
+* **New** reduction to the pole and upward continuation with FFT in
+  ``fatiando.gravmag.transform``. The pole reduction allows both remanent and
+  induced magnetization. Upward continuation is more stable and faster than the
+  old space domain approach that was implemented.
+  (`PR 156 <https://github.com/fatiando/fatiando/pull/156>`__)
+* **IMPORTANT BUG FIX**: Fixed wrong ordering of nodes in
+  ``fatiando.mesher.PointGrid``. The order of nodes had the same problem as the
+  regular grids (fixed in
+  `196 <https://github.com/fatiando/fatiando/pull/196>`__). This was not caught
+  before because ``PointGrid`` didn't use ``gridder.regular`` to generate its
+  internal regular grid. This is an example of why reuse is a good thing! Tests
+  now should catch any future problems.
+  (`PR 209 <https://github.com/fatiando/fatiando/pull/209>`__)
+* **IMPORTANT BUG FIX**: ``fatiando.gridder.regular`` and many other places in
+  Fatiando where using the wrong convention for x, y dimensions.
+  x should point North and y East. Thus, a data matrix (regular grid) should
+  have x varying in the lines and y varying in the columns. This is **oposite**
+  what we had. This fix also changes the ``shape`` argument to be ``(nx, ny)``
+  instead of ``(ny, nx)``. **Users should be aware of this and double check
+  their code.**
+  (`PR 196 <https://github.com/fatiando/fatiando/pull/196>`__)
+* More stable derivatives in ``fatiando.gravamag.transform``. The horizontal
+  derivatives default to central finite-differences for greater stability. The
+  FFT based derivatives use a grid padding to avoid edge effects.
+  Thanks to `Matteo Niccoli <https://mycarta.wordpress.com/>`__ for suggesting
+  this fix.
+  (`PR 196 <https://github.com/fatiando/fatiando/pull/196>`__)
+* **Renamed** ``fatiando.gravmag.fourier.ansig`` to
+  ``fatiando.gravmag.transform.tga``
+  (`PR 186 <https://github.com/fatiando/fatiando/pull/186>`__)
+* **Remove** ``fatiando.gravmag.fourier`` by moving relevant functions into
+  ``fatiando.gravmag.transform``.
+  (`PR 186 <https://github.com/fatiando/fatiando/pull/186>`__)
+* **New** ``seismic_wiggle`` and ``seismic_image`` plotting functions for
+  seismic data in :ref:`fatiando.vis.mpl <fatiando_vis_mpl>` (`PR 192
+  <https://github.com/fatiando/fatiando/pull/192>`__) plus cookbook
+* **Remove** OpenMP parallelism from the ``fatiando.gravmag`` Cython coded
+  forward modeling. Caused the majority of our install problems and didn't
+  offer a great speed up anyway (< 2x). Can be replaced by ``multiprocessing``
+  parallelism without the install problems
+  (`PR 177 <https://github.com/fatiando/fatiando/pull/177>`__)
+* Tesseroid forward modeling functions in ``fatiando.gravmag.tesseroid`` take
+  an optional ``pool`` argument. Use it to pass an open
+  ``multiprocessing.Pool`` for the function to use. Useful to avoid processes
+  spawning overhead when calling the forward modeling many times
+  (`PR 183 <https://github.com/fatiando/fatiando/pull/183>`__)
+* **BUG FIX**: Avoid weird numba error when tesseroid has zero volume. Let to
+  better sanitizing the input model. Tesseroids with dimensions < 1cm are
+  ignored because they have almost zero gravitational effect
+  (`PR 179 <https://github.com/fatiando/fatiando/pull/179>`__)
+* Ported the tesseroid forward modeling code from Cython to numba. This is
+  following the discussion on issue
+  `#169 <https://github.com/fatiando/fatiando/issues/169>`__ to make installing
+  less of burden by removing the compilation step. The numba code runs just as
+  fast. New functions support multiprocessing parallelism.
+  Thanks to new contributor Graham Markall for help with numba.
+  (`PR 175 <https://github.com/fatiando/fatiando/pull/175>`__)
+* Better documentation and faster implementation of
+  ``fatiando.gravmag.tesseroid``
+  (`PR 118 <https://github.com/fatiando/fatiando/pull/118>`__)
 * **BUG FIX**: Replace ``matplotlib.mlab.griddata`` with
   ``scipy.interpolate.griddata`` in ``fatiando.gridder.interp`` to avoid
   incompatibilities when using ``matplotlib > 1.3``
