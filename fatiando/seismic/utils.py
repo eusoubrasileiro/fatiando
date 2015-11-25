@@ -15,33 +15,36 @@ Nmo correction based on a simple horizontal layered earth is given by:
 
     t^2 = (t_0)^2 + x^2/(v_rms)^2
 
-where Vrms is given by ... tchururu
+
 
 """
 
 import numpy as np
+from scipy import interpolate
 
-def nmo2(t0, vrms, cmp_gather, dt, ds, stretching=0.4):
+
+def nmo(cmp_gather, offsets, vnmo, dt, stretching=0.4):
     r"""
     Given nmo functions defined by t0 and vrms, apply
     the nmo correction on the 2D cmp_gather of traces.
+    t0 is the time sample
 
     Parameters:
 
-    * t0 : 1D-array
-        t0 parameter of all nmo functions for this cmp gather
-    * vrms : 1D-array
-        vrms paramater of all nmo functions for this cmp gather
     * cmp_gather : 2D-array
         traces of this gather from near to far-offset
+        (nsamples, ntraces)
+    * offsets : 1D-array
+        off-sets for each cmp in this gather
+    * vnmo : 1D-array
+        velocity parameter of all nmo functions for this cmp gather
+        must have same size as (nsamples)
     * dt : float
         sample rate
-    * ds : float
-        cmp space increment between off-sets
     * stretching: float
         percentage of frequency change due nmo stretching acceptable,
         above this limited, the trace region is muted
-        Uses windowed fft to comparison.
+        uses delta nmo over t0 as criteria
 
     Returns:
 
@@ -50,25 +53,27 @@ def nmo2(t0, vrms, cmp_gather, dt, ds, stretching=0.4):
 
     Note:
 
-    Uses spline interpolation of sample values.
+    Uses linear interpolation of sample values.
 
     """
 
-    # create spline interpolations for all traces
-
-    # create output cmp_gather
+    #  create output cmp_gather
+    ns, nx = cmp_gather.shape
     cmp_nmo = np.zeros(cmp_gather.shape)
 
-    for t, v in zip(t0, vrms):
-        for i in range(cmp_gather.shape[1]):
-            #for
-            #cmp_nmo
-            raise NotImplementedError(
-            "We are working on it...")
-
-
-
-    # perform nmo stretching check and mute
+    for j in range(nx):  # correct each offset
+        x = offsets[j]
+        # function to interpolate amplitude values for this trace
+        interpfunc = interpolate.interp1d(range(ns)*dt, cmp_gather[:, j])
+        for i in range(ns):  # for each (t0, vrms) hyperbola of this trace
+            t0 = i*dt
+            t = np.sqrt(t0**2+(x/vnmo[i])**2)
+            if stretching is not None:
+                # dtnmo/t0 equivalent to df/f frequency distortion Oz. Yilmaz
+                if (t-t0)/t0 > stretching:
+                    # will remain zero
+                    continue
+            cmp_nmo[i, j] = interpfunc(t)
 
     return cmp_nmo
 
@@ -93,6 +98,7 @@ def vrms_n (n, vi, twt):
 
     return np.sqrt(vrms_n/t0)
 
+
 def vrms(vi, ds):
     """
     Calculate RMS velocity from:
@@ -107,4 +113,3 @@ def vrms(vi, ds):
     twt = 2*(ds/vi) # two way time
     return [ vrms_n(i, vi, twt) for i in range(1,len(vi)+1) ]
 
-twt = 2*(ds/vi) # two way time
