@@ -3,7 +3,7 @@ Tools for seismic modeling or inversion
 
 **Auxiliary functions**
 
-* :func:`~fatiando.seismic.utils.nmo2`: apply 2D nmo correction on CMP gather
+* :func:`~fatiando.seismic.utils.nmo`: apply nmo correction on a CMP gather
 
 * :func:`~fatiando.seismic.utils.`:
 
@@ -21,6 +21,7 @@ Nmo correction based on a simple horizontal layered earth is given by:
 
 import numpy as np
 from scipy import interpolate
+from fatiando.vis import mpl
 
 
 def nmo(cmp_gather, offsets, vnmo, dt, stretching=0.4):
@@ -36,6 +37,7 @@ def nmo(cmp_gather, offsets, vnmo, dt, stretching=0.4):
         (nsamples, ntraces)
     * offsets : 1D-array
         off-sets for each cmp in this gather
+        in the same sequence as ntraces
     * vnmo : 1D-array
         velocity parameter of all nmo functions for this cmp gather
         must have same size as (nsamples)
@@ -64,10 +66,13 @@ def nmo(cmp_gather, offsets, vnmo, dt, stretching=0.4):
     for j in range(nx):  # correct each offset
         x = offsets[j]
         # function to interpolate amplitude values for this trace
-        interpfunc = interpolate.interp1d(range(ns)*dt, cmp_gather[:, j])
+        interpfunc = interpolate.interp1d(
+            np.linspace(0, ns*dt, ns), cmp_gather[:, j])
         for i in range(ns):  # for each (t0, vrms) hyperbola of this trace
             t0 = i*dt
             t = np.sqrt(t0**2+(x/vnmo[i])**2)
+            if t > ns*dt:  # maximum time to correct
+                continue
             if stretching is not None:
                 # dtnmo/t0 equivalent to df/f frequency distortion Oz. Yilmaz
                 if (t-t0)/t0 > stretching:
@@ -113,3 +118,39 @@ def vrms(vi, ds):
     twt = 2*(ds/vi) # two way time
     return [ vrms_n(i, vi, twt) for i in range(1,len(vi)+1) ]
 
+
+def plot_vnmo(cmp_gather, offsets, vnmo, dt, inc=70):
+    r"""
+    Given nmo functions defined by t0 and vrms, draw
+    it over the specified gather using `seismic_image`
+
+    Parameters:
+
+    * cmp_gather : 2D-array
+        traces of this gather from near to far-offset
+        (nsamples, ntraces)
+    * offsets : 1D-array
+        off-sets for each cmp in this gather
+        in the same sequence as ntraces
+    * vnmo : 1D-array
+        velocity parameter of all nmo functions for this cmp gather
+        must have same size as (nsamples)
+    * dt : float
+        sample rate
+    * inc: int
+        plotting option, step in time samples between hyperbolas
+        to avoid overlapping totally the seismic image bellow
+
+    Returns:
+
+    * cmp_nmo : 2D array
+        nmo corrected cmp traces
+
+    """
+    ns, nx = cmp_gather.shape
+
+    for i in range(0, ns, inc): # each (t0, vnmo) hyperbola
+        t0 = i*dt
+        t = np.sqrt(t0**2+(offsets/vnmo[i])**2)
+        mpl.seismic_image(cmp_gather, dt, aspect='auto')
+        mpl.plot(range(nx), t, '+b')
