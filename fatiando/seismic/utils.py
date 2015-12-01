@@ -1,11 +1,14 @@
 r"""
-Tools for seismic modeling or inversion
+Tools for seismic processing
 
 **Auxiliary functions**
 
-* :func:`~fatiando.seismic.utils.nmo`: apply nmo correction on a CMP gather
+* :func:`~fatiando.seismic.utils.vrms`: Calculate RMS velocity from interval
+thickness and velocity (horizontally layered model)
 
-* :func:`~fatiando.seismic.utils.`:
+* :func:`~fatiando.seismic.utils.nmo`: Apply nmo correction on a CMP gather
+
+* :func:`~fatiando.seismic.utils.plot_vnmo`: Draw nmo hyperbolas over a CMP gather
 
 **Theory**
 
@@ -14,8 +17,6 @@ Nmo correction based on a simple horizontal layered earth is given by:
 .. math::
 
     t^2 = (t_0)^2 + x^2/(v_rms)^2
-
-
 
 """
 
@@ -68,7 +69,7 @@ def nmo(cmp_gather, offsets, vnmo, dt, stretching=0.4):
         # function to interpolate amplitude values for this trace
         interpfunc = interpolate.interp1d(
             np.linspace(0, ns*dt, ns), cmp_gather[:, j])
-        for i in range(ns):  # for each (t0, vrms) hyperbola of this trace
+        for i in range(ns):  # for each (t0, vnmo) hyperbola of this trace
             t0 = i*dt
             t = np.sqrt(t0**2+(x/vnmo[i])**2)
             if t > ns*dt:  # maximum time to correct
@@ -83,45 +84,27 @@ def nmo(cmp_gather, offsets, vnmo, dt, stretching=0.4):
     return cmp_nmo
 
 
-def vrms_n (n, vi, twt):
-    """
-    RMS velocity from layer 0 to layer n
-
-    * n : int
-        layer index to where vrms will be calculated
-    * vi : ndarray
-        interval velocity array
-    * twt : ndarray
-        two way time for each layer vi
-
-    """
-    vrms_n = 0.
-    t0 = 0.
-    for i in range(n):
-        vrms_n += twt[i]*vi[i]**2
-        t0 += twt[i]
-
-    return np.sqrt(vrms_n/t0)
-
-
 def vrms(vi, ds):
     """
-    Calculate RMS velocity from:
+    Calculate RMS (Root Mean Square) velocity from interval thickness
+    and velocity (horizontally layered model)
 
     * vi : ndarray
-        interval velocity array size
+        interval velocity
     * ds : ndarray
         layer size
 
     return Rms velocity array
     """
-    twt = 2*(ds/vi) # two way time
-    return [ vrms_n(i, vi, twt) for i in range(1,len(vi)+1) ]
+    twt = 2*(ds/vi)  # two way time
+    vi2_twt = (vi**2)*twt
+    return np.sqrt(vi2_twt.cumsum()/twt.cumsum())
 
 
-def plot_vnmo(cmp_gather, offsets, vnmo, dt, inc=70):
+def plot_vnmo(cmp_gather, offsets, vnmo, dt, inc=70,
+              vmin=None, vmax=None, aspect='auto'):
     r"""
-    Given nmo functions defined by t0 and vrms, draw
+    Given nmo functions defined by t0 and vnmo, draw
     it over the specified gather using `seismic_image`
 
     Parameters:
@@ -140,6 +123,11 @@ def plot_vnmo(cmp_gather, offsets, vnmo, dt, inc=70):
     * inc: int
         plotting option, step in time samples between hyperbolas
         to avoid overlapping totally the seismic image bellow
+    * vmin, vmax : float
+        min and max values for imshow
+    * aspect : float
+        matplotlib imshow aspect parameter, ratio between axes
+
 
     Returns:
 
@@ -152,5 +140,5 @@ def plot_vnmo(cmp_gather, offsets, vnmo, dt, inc=70):
     for i in range(0, ns, inc): # each (t0, vnmo) hyperbola
         t0 = i*dt
         t = np.sqrt(t0**2+(offsets/vnmo[i])**2)
-        mpl.seismic_image(cmp_gather, dt, aspect='auto')
+        mpl.seismic_image(cmp_gather, dt, aspect=aspect, vmin=vmin, vmax=vmax)
         mpl.plot(range(nx), t, '+b')
