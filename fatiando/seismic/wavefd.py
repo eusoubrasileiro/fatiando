@@ -1409,7 +1409,10 @@ class Scalar(WaveFD2D):
     * Boundary conditions for numerical solution of wave propagation problems
     Geophysics p 1099-1110 - 1978
 
-
+    TODO: fix boundaries and padding indexes. The way it is implemented
+    nz looses 2 index values due 4 order space differences. So
+    you can not access sim[:, 0, 5] as a seismogram at z=0 since z=0
+    is not stored is just a boundary condition.
     """
     def __init__(self, velocity, spacing, cachefile=None, dt=None,
                  padding=50, taper=0.004, verbose=True):
