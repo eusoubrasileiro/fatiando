@@ -87,13 +87,14 @@ def rt_scalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, ta
     vel_pad = wavefd._add_pad(vel, pad, (nz, nx))
     # Pack the particle position u at 3 different times in one 3d array
     u = numpy.zeros((3, nz, nx), dtype=numpy.float)
-    # insert the zero-offset samples reversed in time last ones first. For utp1 at z=0 for every x
+    # insert the zero-offset samples reversed in time last ones first.
+    # For utp1 at z=3 for every x or z=0? I have to look at this again sometime
     for j in xrange(nx-2*pad):  # tp1
-        u[0, 0, j + pad] = boundary[iterations-1, j]
+        u[0, 0, j + pad] += boundary[iterations-1, j]
     if snapshot is not None:
         yield 0, u[0, :-pad, pad:-pad]
     for j in xrange(nx-2*pad):  # t
-        u[1, 0, j + pad] = boundary[iterations-2, j]
+        u[1, 0, j + pad] += boundary[iterations-2, j]
     if snapshot is not None:
         yield 1, u[1, :-pad, pad:-pad]
     for iteration in xrange(2, iterations):
@@ -107,7 +108,7 @@ def rt_scalar(vel, area, dt, iterations, boundary, snapshot=None, padding=-1, ta
         wavefd._nonreflexive_scalar_boundary_conditions(u[tm1], u[t], u[tp1], vel_pad, dt, dx, dz, nx, nz)
         # insert the zero-offset samples reversed in time last ones first. For utp1 at z=0 for every x
         for j in xrange(nx-2*pad):
-            u[t, 0, j + pad] = boundary[iterations-(iteration+1), j]
+            u[t, 0, j + pad] += boundary[iterations-(iteration+1), j]
         if snapshot is not None and iteration%snapshot == 0:
             yield iteration, u[tm1, :-pad, pad:-pad]
 
