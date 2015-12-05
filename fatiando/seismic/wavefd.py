@@ -281,7 +281,12 @@ class Ricker(Source):
         \psi(t) = A(1 - 2 \pi^2 f^2 t^2)exp(-\pi^2 f^2 t^2)
 
     .. note:: If you want the source to start with amplitude close to 0,
-                use ``delay = 3.5/frequency``
+                use ``delay = 1./frequency``
+
+    .. note:: If you want a cut-off frequency of fc use the expression below
+    to define fc
+
+        fc = \frac{2f_{cut}}{3\sqrt{\pi}}
 
     Parameters:
 
