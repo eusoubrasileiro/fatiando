@@ -778,11 +778,7 @@ def acoustic3_esg(c, density, area, dt, iterations, sources, stations=None,
     # Compute and yield the initial solutions
     for src in sources:
         k, j, i = src.indexes()
-        # TODO improve to better version of second source derivative
-        d2src = numpy.diff(src(numpy.linspace(0., iterations * dt, iterations)), n=2)
-        d2src = numpy.append(d2src, [0., 0.]) / dt ** 2  # due difference 2nd
-        src.d2src = d2src
-        u[1, k, j + pad, i + pad] += kmod[k, j, i] * (dt ** 2) * src.d2src[0]
+        u[1, k, j + pad, i + pad] += kmod[k, j, i] * (dt ** 2) * src(0)
     # Update seismograms
     for station, seismogram in zip(stations, seismograms):
         k, j, i = station
@@ -801,7 +797,7 @@ def acoustic3_esg(c, density, area, dt, iterations, sources, stations=None,
         for src in sources:
             k, j, i = src.indexes()
             u[tp1, k, j + pad, i + pad] += ((dt ** 2) * kmod[k, j, i] *
-                                            src.d2src[iteration])
+                                            src(iteration))
         # Update seismograms
         for station, seismogram in zip(stations, seismograms):
             k, j, i = station
