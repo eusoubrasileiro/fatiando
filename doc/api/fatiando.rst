@@ -1,13 +1,16 @@
 .. _fatiando:
 
-API Reference: The ``fatiando`` package
+The ``fatiando`` package
 ========================================
 
 .. automodule:: fatiando
    :members:
    :show-inheritance:
 
+**List of modules and packages:**
+
 .. toctree::
+    :maxdepth: 1
 
     gravmag.rst
     seismic.rst
@@ -16,7 +19,6 @@ API Reference: The ``fatiando`` package
     gridder.rst
     vis.rst
     datasets.rst
-    gui.rst
     utils.rst
     constants.rst
     inversion.rst
