@@ -10,26 +10,7 @@ Version (development)
 
 **Changes**:
 
-* **BUG FIX**: Tesseroid computations failed (silently) when tesseroids were
-  smaller than 1e-6 degrees on a side (~ 10 cm). Code now ignores these
-  tesseroids on input and warns the user about it. If a tesseroid becomes
-  smaller than this during adaptive discretization, the tesseroid effect will
-  be computed without division.  The user will be warned when this happens.
-  (`PR 228 <https://github.com/fatiando/fatiando/pull/228>`__)
-* **New** reduction to the pole and upward continuation with FFT in
-  ``fatiando.gravmag.transform``. The pole reduction allows both remanent and
-  induced magnetization. Upward continuation is more stable and faster than the
-  old space domain approach that was implemented.
-  (`PR 156 <https://github.com/fatiando/fatiando/pull/156>`__)
-* **IMPORTANT BUG FIX**: Fixed wrong ordering of nodes in
-  ``fatiando.mesher.PointGrid``. The order of nodes had the same problem as the
-  regular grids (fixed in
-  `196 <https://github.com/fatiando/fatiando/pull/196>`__). This was not caught
-  before because ``PointGrid`` didn't use ``gridder.regular`` to generate its
-  internal regular grid. This is an example of why reuse is a good thing! Tests
-  now should catch any future problems.
-  (`PR 209 <https://github.com/fatiando/fatiando/pull/209>`__)
-* **IMPORTANT BUG FIX**: ``fatiando.gridder.regular`` and many other places in
+* **IMPORTANT BUG FIX**: ``fatiando,gridder.regular`` and many other places in
   Fatiando where using the wrong convention for x, y dimensions.
   x should point North and y East. Thus, a data matrix (regular grid) should
   have x varying in the lines and y varying in the columns. This is **oposite**
@@ -76,6 +57,11 @@ Version (development)
 * Better documentation and faster implementation of
   ``fatiando.gravmag.tesseroid``
   (`PR 118 <https://github.com/fatiando/fatiando/pull/118>`__)
+* Complete re-implementation of
+  :ref:`fatiando.seismic.wavefd <fatiando_seismic_wavefd>`
+  from methods to simulation classes using HDF5 file format and rich display
+  features of IPython notebook. Old code still remains but should be avoided.
+  (`PR 137 <https://github.com/fatiando/fatiando/pull/137>`_)
 * **BUG FIX**: Replace ``matplotlib.mlab.griddata`` with
   ``scipy.interpolate.griddata`` in ``fatiando.gridder.interp`` to avoid
   incompatibilities when using ``matplotlib > 1.3``
