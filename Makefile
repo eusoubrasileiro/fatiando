@@ -2,11 +2,13 @@
 PY := python
 PIP := pip
 NOSE := nosetests
+CONDAENV := fatiando
 
 help:
 	@echo "Commands:"
 	@echo ""
 	@echo "    develop       build and force pip install a development version (calls Cython)"
+	@echo "    setup         create a conda env 'fatiando' and install requirements"
 	@echo "    build         build the extension modules inplace"
 	@echo "    cython        generate C code from Cython files before building"
 	@echo "    docs          build the html documentation"
@@ -50,11 +52,11 @@ coverage: build
 		test/
 
 pep8:
-	pep8 --show-source --show-pep8 --ignore=W503,E226,E241\
-		--exclude=_version.py fatiando test cookbook
+	pep8 --show-source --ignore=W503,E226,E241\
+		--exclude=_version.py fatiando test cookbook setup.py
 
 pep8-stats:
-	pep8 --exclude=_version.py --statistics -qq fatiando test cookbook
+	pep8 --exclude=_version.py --statistics -qq fatiando test cookbook setup.py
 
 package:
 	$(PY) setup.py sdist --formats=zip,gztar
@@ -71,3 +73,17 @@ clean:
 	rm -rvf bouguer_alps_egm08.grd cookbook/bouguer_alps_egm08.grd
 	rm -rvf *.gdf cookbook/*.gdf
 	make -C doc clean
+
+setup: install_requires
+
+mkenv:
+	conda create -n $(CONDAENV) --yes pip python=2.7
+
+install_requires: mkenv
+	bash -c "source activate $(CONDAENV) && conda install --yes --file requirements.txt"
+	bash -c "source activate $(CONDAENV) && conda install --yes --file test/requirements-conda.txt"
+	bash -c "source activate $(CONDAENV) && pip install -r test/requirements-pip.txt"
+
+delete_env:
+	bash -c "source deactivate; conda env remove --name $(CONDAENV)"
+
