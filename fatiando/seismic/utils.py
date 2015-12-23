@@ -51,12 +51,12 @@ def nmo(cmp_gather, offsets, vnmo, dt, stretching=0.4):
 
     Returns:
 
-    * cmp_nmo : 2D array
-        nmo corrected cmp traces
+        * cmp_nmo : 2D array
+            nmo corrected cmp traces
 
-    Note:
+        Note:
 
-    Uses linear interpolation of sample values.
+        Uses linear interpolation of sample values.
 
     """
 
