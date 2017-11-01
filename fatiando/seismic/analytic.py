@@ -54,7 +54,6 @@ def wave2d_analytic(rho, c, dt, source):
     ws = numpy.pi*2*numpy.arange(0, (1./dt), (1./(dt*n)))
     # all k's = w/c in omega/frequency domain to evaluate the solution
     ks = ws/c
-    print ws.size
     # hankel filter kernel
     hankel = -1j*numpy.pi*hankel2(0, ks*rho)
     hankel[0] = 1j  # i infinity in limit

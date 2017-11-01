@@ -1040,7 +1040,7 @@ def seismic_wiggle(section, dt=0.004, ranges=None, scale=1.,
     if ranges is None:
         ranges = (0, ntraces)
     x0, x1 = ranges
-    # horizontal increment
+    # horizontal increment between traces
     dx = float((x1-x0)/ntraces)
     pyplot.xlim(x0, x1)
     for i, trace in enumerate(section.transpose()):
