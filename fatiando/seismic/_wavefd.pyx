@@ -2,12 +2,15 @@
 Cython implementation of the time stepping functions for
 fatiando.seismic.wavefd
 """
+import numpy
 
 from libc.math cimport exp, sqrt
+# Import Cython definitions for numpy
 cimport numpy
 cimport cython
+
+DTYPE = numpy.float
 ctypedef numpy.float_t double
-# Import Cython definitions for numpy
 from cython.parallel cimport prange
 
 __all__ = [
@@ -297,21 +300,21 @@ def _nonreflexive_scalar_boundary_conditions(
     # we always apply outside like instructed by Reynolds.
     # Also you must use absorbing boundary before step_scalar in the loop
 
-    for i in xrange(nz):
+    for i in range(nz):
         # left
-        for p in xrange(2):
+        for p in range(2):
                 u_tp1[i, p] = ( u_t[i, p] + u_t[i, p+1] - u_tm1[i,p+1] +
                 (vel[i, p]*dt/dx)*(u_t[i, p+1] - u_t[i, p] - u_tm1[i, p+2] + u_tm1[i, p+1])
                 )
         #right
-        for p in xrange(2): 
+        for p in range(2):
             p = 1-p            
             u_tp1[i, nx-2+p] = ( u_t[i, nx-2+p] + u_t[i, nx-3+p] - u_tm1[i, nx-3+p] -
                 (vel[i, nx-2+p]*dt/dx)*(u_t[i, nx-2+p] - u_t[i, nx-3+p] - u_tm1[i, nx-3+p] + u_tm1[i, nx-4+p])
                 )
     # Down
-    for i in xrange(nx):
-        for p in xrange(2):
+    for i in range(nx):
+        for p in range(2):
             p = 1-p
             u_tp1[nz-2+p, i] = ( u_t[nz-2+p, i] + u_t[nz-3+p, i] - u_tm1[nz-3+p, i] -
                     (vel[nz-2+p, i]*dt/dz)*(u_t[nz-2+p, i] - u_t[nz-3+p, i] - u_tm1[nz-3+p, i] + u_tm1[nz-4+p, i])

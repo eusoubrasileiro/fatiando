@@ -190,7 +190,7 @@ import h5py
 
 
 try:
-    from ._wavefd import *
+    from fatiando.seismic._wavefd import *
 except:
     def not_implemented(*args, **kwargs):
         raise NotImplementedError(
